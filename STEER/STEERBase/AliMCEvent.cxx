@@ -61,10 +61,12 @@ AliMCEvent::AliMCEvent():
     fPrimaryOffset(0),
     fSecondaryOffset(0),
     fExternal(0),
+    fTopEvent(0),
     fVertex(0),
     fNBG(-1)
 {
     // Default constructor
+  fTopEvent = this;
 }
 
 AliMCEvent::AliMCEvent(const AliMCEvent& mcEvnt) :
@@ -85,6 +87,7 @@ AliMCEvent::AliMCEvent(const AliMCEvent& mcEvnt) :
     fPrimaryOffset(0),
     fSecondaryOffset(0),
     fExternal(0),
+    fTopEvent(mcEvnt.fTopEvent),
     fVertex(mcEvnt.fVertex),
     fNBG(mcEvnt.fNBG)
 { 
@@ -100,6 +103,11 @@ AliMCEvent& AliMCEvent::operator=(const AliMCEvent& mcEvnt)
     }
   
     return *this; 
+}
+
+AliMCEvent::~AliMCEvent()
+{
+  if (fSubsidiaryEvents) delete fSubsidiaryEvents;
 }
 
 void AliMCEvent::ConnectTreeE (TTree* tree)
@@ -160,6 +168,7 @@ void AliMCEvent::ConnectTreeTR (TTree* tree)
 {
     // Connect the track reference tree
     fTreeTR = tree;
+    if (!fTreeTR) return; // just disconnect
     
     if (fTreeTR->GetBranch("AliRun")) {
 	if (fTmpFileTR) {
@@ -200,9 +209,9 @@ Int_t AliMCEvent::GetParticleAndTR(Int_t i, TParticle*& particle, TClonesArray*&
     return mc->GetParticleAndTR(idx,particle,trefs);
   }
   //
-  particle = fStack->Particle(i);
+  particle = fStack->Particle(i,kTRUE);
   if (fTreeTR) {
-    fTreeTR->GetEntry(fStack->TreeKEntry(i));
+    fTreeTR->GetEntry(fStack->TreeKEntry(i,kTRUE));
     trefs    = fTRBuffer;
     return trefs->GetEntries();
   } else {
@@ -246,7 +255,7 @@ void AliMCEvent::FinishEvent()
     fNparticles = -1;
     fNprimaries = -1;    
     fStack      =  0;
-//    fSubsidiaryEvents->Clear();
+    delete fSubsidiaryEvents;
     fSubsidiaryEvents = 0;
     fNBG = -1;
 }
@@ -279,7 +288,7 @@ void AliMCEvent::DrawCheck(Int_t i, Int_t search)
 	}
 	printf("Found Hits at %5d\n", i);
     }
-    TParticle* particle = fStack->Particle(i);
+    TParticle* particle = fStack->Particle(i,kTRUE);
     
     TH2F*    h = new TH2F("", "", 100, -500, 500, 100, -500, 500);
     Float_t x0 = particle->Vx();
@@ -357,7 +366,7 @@ void AliMCEvent::ReorderAndExpandTreeTR()
     TParticle* part;
 
     for (Int_t ip = np - 1; ip > -1; ip--) {
-	part = fStack->Particle(ip);
+      part = fStack->Particle(ip,kTRUE);
 //	printf("Particle %5d %5d %5d %5d %5d %5d \n", 
 //	       ip, part->GetPdgCode(), part->GetFirstMother(), part->GetFirstDaughter(), 
 //	       part->GetLastDaughter(), part->TestBit(kTransportBit));
@@ -370,7 +379,7 @@ void AliMCEvent::ReorderAndExpandTreeTR()
 	    Int_t inext = ip - 1;
 	    while (dau2 < 0) {
 		if (inext >= 0) {
-		    part = fStack->Particle(inext);
+     		    part = fStack->Particle(inext,kTRUE);
 		    dau2 =  part->GetFirstDaughter();
 		    if (dau2 == -1 || dau2 < np) {
 			dau2 = -1;
@@ -511,6 +520,19 @@ void AliMCEvent::ReorderAndExpandTreeTR()
     fTreeTR = fTmpTreeTR;
 }
 
+Bool_t AliMCEvent::IsFromSubsidiaryEvent(int id) const
+{
+  // returns true if particle id is from subsidiary (to which the signal was embedded) event
+  if (id >= BgLabelOffset() && fSubsidiaryEvents) return kTRUE;
+  if (fSubsidiaryEvents) {
+    AliMCEvent* mc;
+    Int_t idx = FindIndexAndEvent(id, mc);
+    if (mc != fSubsidiaryEvents->At(0)) return kTRUE;
+  } 
+  return kFALSE;
+}
+
+
 AliVParticle* AliMCEvent::GetTrack(Int_t i) const
 {
     // Get MC Particle i
@@ -558,10 +580,10 @@ AliVParticle* AliMCEvent::GetTrack(Int_t i) const
     // First check If the MC Particle has been already cached
     if(!fMCParticleMap->At(i)) {
       // Get particle from the stack
-      particle   = fStack->Particle(i);
+      particle   = fStack->Particle(i,kTRUE);
       // Get track references from Tree TR
       if (fTreeTR) {
-	fTreeTR->GetEntry(fStack->TreeKEntry(i));
+	fTreeTR->GetEntry(fStack->TreeKEntry(i,kTRUE));
 	trefs     = fTRBuffer;
 	ntref     = trefs->GetEntriesFast();
 	rarray    = new TObjArray(ntref);
@@ -633,9 +655,9 @@ TParticle* AliMCEvent::ParticleFromStack(Int_t i) const
   }
   if (fSubsidiaryEvents) {
     AliMCEvent* event = (AliMCEvent*)fSubsidiaryEvents->At(i/BgLabelOffset());
-    return event->Stack()->Particle(i%BgLabelOffset());
+    return event->Stack()->Particle(i%BgLabelOffset(),kTRUE);
   }
-  return fStack->Particle(i);
+  return fStack->Particle(i,kTRUE);
 }
 
 AliGenEventHeader* AliMCEvent::GenEventHeader() const 
@@ -658,12 +680,15 @@ void AliMCEvent::AddSubsidiaryEvent(AliMCEvent* event)
 {
     // Add a subsidiary event to the list; for example merged background event.
     if (!fSubsidiaryEvents) {
-	TList* events = new TList();
-	events->Add(new AliMCEvent(*this));
-	fSubsidiaryEvents = events;
+      TList* events = new TList();
+      events->SetOwner(kFALSE);
+      events->Add(new AliMCEvent(*this));
+      fSubsidiaryEvents = events;
     }
     
     fSubsidiaryEvents->Add(event);
+    if (fStack) fStack->SetMCEmbeddingFlag(kTRUE);
+    event->SetTopEvent(this);
 }
 
 AliGenEventHeader *AliMCEvent::FindHeader(Int_t ipart) {
@@ -758,7 +783,7 @@ Bool_t AliMCEvent::IsPhysicalPrimary(Int_t i) const
 
     
     if (!fSubsidiaryEvents) {
-	return fStack->IsPhysicalPrimary(i);
+      return fStack->IsPhysicalPrimary(i,kTRUE);
     } else {
 	AliMCEvent* evt = 0;
 	Int_t idx = FindIndexAndEvent(i, evt);
@@ -771,7 +796,7 @@ Bool_t AliMCEvent::IsSecondaryFromWeakDecay(Int_t i)
 //
 // Delegate to subevent if necesarry 
     if (!fSubsidiaryEvents) {
-	return fStack->IsSecondaryFromWeakDecay(i);
+	return fStack->IsSecondaryFromWeakDecay(i,kTRUE);
     } else {
 	AliMCEvent* evt = 0;
 	Int_t idx = FindIndexAndEvent(i, evt);
@@ -784,7 +809,7 @@ Bool_t AliMCEvent::IsSecondaryFromMaterial(Int_t i)
 //
 // Delegate to subevent if necesarry 
     if (!fSubsidiaryEvents) {
-	return fStack->IsSecondaryFromMaterial(i);
+	return fStack->IsSecondaryFromMaterial(i,kTRUE);
     } else {
 	AliMCEvent* evt = 0;
 	Int_t idx = FindIndexAndEvent(i, evt);
@@ -945,7 +970,7 @@ void AliMCEvent::AssignGeneratorIndex() {
       //
       // Loop over primary particles for generator i
       for (Int_t j = nsumpart-1; j >= nsumpart-npart; j--) {
-	AliVParticle* part = GetTrack(j);
+	AliVParticle* part = fTopEvent->GetTrack(j); // after 1st GetTrack indices correspond to top event
 	if (!part) {
 	  AliWarning(Form("AliMCEvent::AssignGeneratorIndex: 0-pointer to particle j %8d npart %8d nsumpart %8d Nprimaries %8d\n", 
 			  j, npart, nsumpart, fNprimaries));
@@ -963,7 +988,7 @@ void AliMCEvent::AssignGeneratorIndex() {
 }
 void AliMCEvent::AssignGeneratorIndex(Int_t index, Int_t dmin, Int_t dmax) {
   for (Int_t k = dmin; k <= dmax; k++) {
-    AliVParticle* dpart = GetTrack(k);
+    AliVParticle* dpart = fTopEvent->GetTrack(k);
     dpart->SetGeneratorIndex(index);
     Int_t d1 = dpart->GetFirstDaughter();
     Int_t d2 = dpart->GetLastDaughter();
@@ -973,9 +998,9 @@ void AliMCEvent::AssignGeneratorIndex(Int_t index, Int_t dmin, Int_t dmax) {
   }
 }
 
-   Bool_t  AliMCEvent::GetCocktailGenerator(Int_t index,TString &nameGen){
+Bool_t  AliMCEvent::GetCocktailGenerator(Int_t index,TString &nameGen){
      //method that gives the generator for a given particle with label index (or that of the corresponding primary)
-     AliVParticle* mcpart0 = (AliVParticle*) (GetTrack(index));
+     AliVParticle* mcpart0 = (AliVParticle*) (fTopEvent->GetTrack(index));
      if(!mcpart0){
        printf("AliMCEvent-BREAK: No valid AliMCParticle at label %i\n",index);
        return 0;
@@ -994,7 +1019,7 @@ void AliMCEvent::AssignGeneratorIndex(Int_t index, Int_t dmin, Int_t dmax) {
     while(nameGen.IsWhitespace()){
       
       
-    AliVParticle* mcpart = (AliVParticle*) (GetTrack(lab));
+    AliVParticle* mcpart = (AliVParticle*) (fTopEvent->GetTrack(lab));
  
      if(!mcpart){
       printf("AliMCEvent-BREAK: No valid AliMCParticle at label %i\n",lab);
@@ -1006,7 +1031,7 @@ void AliMCEvent::AssignGeneratorIndex(Int_t index, Int_t dmin, Int_t dmax) {
       printf("AliMCEvent - BREAK: Reached primary particle without valid mother\n");
       break;
     }
-      AliVParticle* mcmom = (AliVParticle*) (GetTrack(mother));
+      AliVParticle* mcmom = (AliVParticle*) (fTopEvent->GetTrack(mother));
       if(!mcmom){
       printf("AliMCEvent-BREAK: No valid AliMCParticle mother at label %i\n",mother);
        break;
@@ -1067,6 +1092,23 @@ Int_t AliMCEvent::Raw2MergedLabel(int lbRaw) const
   int nprim = mcev->GetNumberOfPrimaries();
   lb += lb<nprim ? mcev->GetPrimaryOffset() : mcev->GetSecondaryOffset() - nprim;
   return lb;
+}
+
+//_____________________________________________________________________________
+Int_t AliMCEvent::GetPrimary(Int_t id)
+{
+  //
+  // Return number of primary that has generated track
+  //
+  
+  int current, parent;
+  //
+  parent=id;
+  while (1) {
+    current=parent;
+    parent=Particle(current)->GetFirstMother();
+    if(parent<0) return current;
+  }
 }
 
 ClassImp(AliMCEvent)

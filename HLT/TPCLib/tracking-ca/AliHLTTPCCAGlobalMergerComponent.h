@@ -20,7 +20,6 @@
 #include "AliHLTProcessor.h"
 #include "AliHLTComponentBenchmark.h"
 
-class AliHLTTPCCAMerger;
 class AliHLTTPCGMMerger;
 
 /**
@@ -54,6 +53,7 @@ class AliHLTTPCCAGlobalMergerComponent : public AliHLTProcessor
      * @copydoc AliHLTComponent::GetInputDataTypes
      */
     void GetInputDataTypes( AliHLTComponentDataTypeList &list );
+    int GetOutputDataTypes(AliHLTComponentDataTypeList& tgtList);
 
     /**
      * @copydoc AliHLTComponent::GetOutputDataType
@@ -114,14 +114,13 @@ class AliHLTTPCCAGlobalMergerComponent : public AliHLTProcessor
 
     /** the global merger object */
 
-    Int_t fVersion; // which version of global merger to use
-
-    AliHLTTPCCAMerger *fGlobalMergerVersion0; //!
     AliHLTTPCGMMerger *fGlobalMerger; //!
 
     double fSolenoidBz;  // magnetic field
     double fClusterErrorCorrectionY; // correction for the cluster error during pre-fit
     double fClusterErrorCorrectionZ; // correction for the cluster error during pre-fit
+	int fNWays; //Setting for merger
+    char fNWaysOuter;
     AliHLTComponentBenchmark fBenchmark;// benchmark
 
     ClassDef( AliHLTTPCCAGlobalMergerComponent, 0 )

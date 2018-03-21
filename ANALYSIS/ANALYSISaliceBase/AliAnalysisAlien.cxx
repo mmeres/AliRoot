@@ -2775,10 +2775,11 @@ Bool_t AliAnalysisAlien::CheckMergedFiles(const char *filename, const char *alie
    stage++;
    TString pattern = "*root_archive.zip";
    if (stage>1) pattern = Form("Stage_%d/*root_archive.zip", stage-1);
-   TGridResult *res = gGrid->Command(Form("find -x Stage_%d %s %s", stage, aliendir, pattern.Data()));
-   if (res) delete res;
+   //TGridResult *res = gGrid->Command(Form("find -x Stage_%d %s %s", stage, aliendir, pattern.Data()));
+   //if (res) delete res;
    // Write standard output to file
-   gROOT->ProcessLine(Form("gGrid->Stdout(); > %s", Form("Stage_%d.xml",stage)));
+   gSystem->Exec(Form("alien_find -x Stage_%d %s %s > Stage_%d.xml 2>/dev/null", stage, aliendir, pattern.Data(), stage));
+   //gROOT->ProcessLine(Form("gGrid->Stdout(); > %s", Form("Stage_%d.xml",stage)));
    // Count the number of files inside
    ifstream ifile;
    ifile.open(Form("Stage_%d.xml",stage));
@@ -2946,11 +2947,18 @@ Bool_t AliAnalysisAlien::MergeOutput(const char *output, const char *basedir, In
       }
       // Iterate grid collection
       while (coll->Next()) {
-         TString fname = gSystem->DirName(coll->GetTURL());
-         fname += "/";
-         fname += inputFile;      
+         TString fname = coll->GetTURL();
+         if (!fname.BeginsWith("alien:") && fname.EndsWith(".zip", TString::kIgnoreCase)) {
+           fname += "#" + inputFile;
+           isGrid = kFALSE; // tells TFileMerger to not use TFile::Cp (which does not support anchors)
+         }
+         else {
+           fname = gSystem->DirName(fname);
+           fname += "/";
+           fname += inputFile;
+         }
          listoffiles->Add(new TNamed(fname.Data(),""));
-      }   
+      }
    } else if (sbasedir.Contains(".txt")) {
       // The file having the .txt extension is expected to contain a list of
       // folders where the output files will be looked. For alien folders,

@@ -451,7 +451,7 @@ void AliITSUv2::CreateGeometry() {
       }
     }
     fUpGeom[j]->CreateLayer(dest);
-	fUpGeom[j]->CreateBarrelLayer(dest);	// #pnamwong
+    //	fUpGeom[j]->CreateBarrelLayer(dest);	// #pnamwong
     
   }
   // CreateSuppCyl(kTRUE,wrapVols[0]);		// Disabled by pnamwong
@@ -654,11 +654,23 @@ void AliITSUv2::CreateMaterials() {
   Float_t wWC[2]={0.5, 0.5};
   Float_t dWC   = 15.63;
 
+  // BEOL (Metal interconnection stack in Si sensors)
+  Float_t aBEOL[3]={26.982, 28.086, 15.999};
+  Float_t zBEOL[3]={13, 14, 8}; // Al, Si, O
+  Float_t wBEOL[3]={0.170, 0.388, 0.442};
+  Float_t dBEOL = 2.28;
+
   // Inox 304
   Float_t aInox304[4]={12.0107,51.9961,58.6928,55.845};
   Float_t zInox304[4]={6.,24.,28,26}; // C, Cr, Ni, Fe
   Float_t wInox304[4]={0.0003,0.18,0.10,0}; // [3] will be computed
   Float_t dInox304   = 7.85;
+
+  // Ceramic (for IB capacitors) (BaTiO3)
+  Float_t aCeramic[3] = { 137.327, 47.867, 15.999 };
+  Float_t zCeramic[3] = { 56, 22, 8 }; // Ba, Ti, O
+  Float_t wCeramic[3] = { 1, 1, 3 };   // Molecular composition
+  Float_t dCeramic = 6.02;
 
  
   AliMixture(1,"AIR$",aAir,zAir,dAir,4,wAir);
@@ -686,7 +698,18 @@ void AliITSUv2::CreateMaterials() {
   AliMixture(7,"KAPTON(POLYCH2)$", aKapton, zKapton, dKapton, 4, wKapton);
   AliMedium(7, "KAPTON(POLYCH2)$",7,0,ifield,fieldm,tmaxfd,stemax,deemax,epsil,stmin);
 
+  // BEOL (Metal interconnection stack in Si sensors)
+  AliMixture(29,"METALSTACK$", aBEOL, zBEOL, dBEOL, 3, wBEOL);
+  AliMedium(29, "METALSTACK$",29,0,ifield,fieldm,tmaxfd,stemax,deemax,epsil,stmin);
 
+  // Glue between IB chip and FPC: density reduced to take into account
+  // empty spaces (160 glue spots/chip , diam. 1 spot = 1 mm)
+  AliMaterial(30,"GLUE_IBFPC$",12.011,6,1.05*0.3,999,999);
+  AliMedium(30,  "GLUE_IBFPC$",30,0,ifield,fieldm,tmaxfd,stemax,deemax,epsil,stmin);
+
+  // Ceramic for IB capacitors (nmat < 0 => wmat contains number of atoms)
+  AliMixture(31, "CERAMIC$", aCeramic, zCeramic, dCeramic, -3, wCeramic);
+  AliMedium(31,  "CERAMIC$",31,0,ifield,fieldm,tmaxfd,stemax,deemax,epsil,stmin);
  
   // values below modified as compared to source AliITSv11 !
 

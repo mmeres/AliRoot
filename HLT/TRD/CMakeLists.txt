@@ -20,9 +20,10 @@ set(MODULE AliHLTTRD)
 include_directories(${AliRoot_SOURCE_DIR}/HLT/TRD)
 
 # Additional include folders in alphabetical order except ROOT
-include_directories(${ROOT_INCLUDE_DIR}
-                    ${AliRoot_SOURCE_DIR}/HLT/BASE
+include_directories(SYSTEM ${ROOT_INCLUDE_DIR})
+include_directories(${AliRoot_SOURCE_DIR}/HLT/BASE
                     ${AliRoot_SOURCE_DIR}/HLT/BASE/util
+                    ${AliRoot_SOURCE_DIR}/HLT/TPCLib
                     ${AliRoot_SOURCE_DIR}/RAW/RAWDatabase
                     ${AliRoot_SOURCE_DIR}/RAW/RAWDatarec
                     ${AliRoot_SOURCE_DIR}/STEER/CDB
@@ -36,32 +37,25 @@ include_directories(${ROOT_INCLUDE_DIR}
 # Sources in alphabetical order
 set(SRCS
     AliHLTTRDAgent.cxx
-    AliHLTTRDCalibFitComponent.cxx
-    AliHLTTRDCalibHistoComponent.cxx
-    AliHLTTRDCalibrationComponent.cxx
     AliHLTTRDCluster.cxx
-    AliHLTTRDClusterHistoComponent.cxx
-    AliHLTTRDClusterizerComponent.cxx
     AliHLTTRDClusterizer.cxx
     AliHLTTRDDefinitions.cxx
-    AliHLTTRDEsdWriterComponent.cxx
-    AliHLTTRDHistoMergerComponent.cxx
     AliHLTTRDMonitorComponent.cxx
-    AliHLTTRDOfflineClusterizerComponent.cxx
-    AliHLTTRDOfflineTrackerV1Component.cxx
     AliHLTTRDPreprocessorComponent.cxx
-    AliHLTTRDTrackerV1Component.cxx
-    AliHLTTRDTrack.cxx
-    AliHLTTRDTrackHistoComponent.cxx
     AliHLTTRDTracklet.cxx
-    AliHLTTRDUtils.cxx
     AliTRDonlineTrackingDataContainer.cxx
+    tracking/AliHLTTRDTrack.cxx
+    tracking/AliHLTTRDTracker.cxx
+    tracking/AliHLTTRDTrackerComponent.cxx
+    tracking/AliHLTTRDTrackletReaderComponent.cxx
+    tracking/AliHLTTRDTrackletWord.cxx
    )
 
 # Headers from sources
 string(REPLACE ".cxx" ".h" HDRS "${SRCS}")
 set(HDRS ${HDRS}
     AliHLTTRDTrackletWordArray.h
+    tracking/AliHLTTRDTrackPoint.h
 )
 
 # Generate the dictionary
@@ -71,7 +65,7 @@ generate_dictionary("${MODULE}" "${MODULE}LinkDef.h" "${HDRS}" "${incdirs}")
 
 # Generate the ROOT map
 # Dependecies
-set(LIBDEPS STEERBase STEER ESD CDB RAWDatabase RAWDatarec HLTbase AliHLTUtil TRDbase TRDrec Net STAT MLP)
+set(LIBDEPS STEERBase STEER ESD CDB RAWDatabase RAWDatarec HLTbase AliHLTUtil TRDbase TRDrec AliHLTTPC Net STAT MLP)
 generate_rootmap("${MODULE}" "${LIBDEPS}" "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE}LinkDef.h")
 
 # Add a library to the project using the specified source files

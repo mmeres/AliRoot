@@ -727,22 +727,25 @@ void AliGenPythia::Generate()
 	  
 	    else  if (fDecayerExodus) {
 
-	      fPythia->SetMDCY(fPythia->Pycomp(22) ,1, 0);
-	      fPythia->SetMDCY(fPythia->Pycomp(111) ,1, 0);
-	      fPythia->SetMDCY(fPythia->Pycomp(221) ,1, 0);
-	      fPythia->Pyexec();
-	      fPythia->OmegaDalitz();
-	      fPythia->SetMDCY(fPythia->Pycomp(111) ,1, 1);
-	      fPythia->PizeroDalitz();
-	      fPythia->PhiDalitz();
-	      fPythia->SetMDCY(fPythia->Pycomp(221) ,1, 1);
-	      fPythia->EtaDalitz();
-	      fPythia->EtaprimeDalitz();
-	      fPythia->SetMDCY(fPythia->Pycomp(22) ,1, 1);
-	      fPythia->RhoDirect();
-	      fPythia->OmegaDirect();
-	      fPythia->PhiDirect();
-	      fPythia->JPsiDirect();
+              fPythia->SetMDCY(fPythia->Pycomp(22) ,1, 0);
+              fPythia->SetMDCY(fPythia->Pycomp(111) ,1, 0);
+              fPythia->SetMDCY(fPythia->Pycomp(221) ,1, 0);
+              fPythia->SetMDCY(fPythia->Pycomp(223) ,1, 0);
+              fPythia->Pyexec();
+              fPythia->EtaprimeDalitz();
+              fPythia->SetMDCY(fPythia->Pycomp(223) ,1, 1);
+              fPythia->OmegaDalitz();
+              fPythia->PhiDalitz();
+              fPythia->SetMDCY(fPythia->Pycomp(111) ,1, 1);
+              fPythia->PizeroDalitz();
+              fPythia->SetMDCY(fPythia->Pycomp(221) ,1, 1);
+              fPythia->EtaDalitz();
+              fPythia->SetMDCY(fPythia->Pycomp(22) ,1, 1);
+              fPythia->RhoDirect();
+              fPythia->OmegaDirect();
+              fPythia->PhiDirect();
+              fPythia->JPsiDirect();
+  
 	    }
 	    
 	    fPythia->Pyexec();
@@ -1028,8 +1031,7 @@ Int_t  AliGenPythia::GenerateMB()
 
     Int_t* pParent = new Int_t[np];
     for (i=0; i< np; i++) pParent[i] = -1;
-    if ((fProcess == kPyJets || fProcess == kPyDirectGamma || fProcess == kPyBeautyJets || fProcess == kPyBeautyppMNRwmi || fProcess == kPyJetsPWHG || fProcess == kPyCharmPWHG || fProcess == kPyBeautyPWHG)
-	&& fEtMinJet > 0.) {
+    if ((fProcess == kPyJets || fProcess == kPyDirectGamma || fProcess == kPyBeautyJets || fProcess == kPyBeautyppMNRwmi || fProcess == kPyJetsPWHG || fProcess == kPyCharmPWHG || fProcess == kPyBeautyPWHG)) {
  	TParticle* jet1 = (TParticle *) fParticles.At(6);
 	TParticle* jet2 = (TParticle *) fParticles.At(7);
 	

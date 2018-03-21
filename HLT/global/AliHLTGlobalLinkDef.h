@@ -1,5 +1,5 @@
 #if !defined(__CINT__) && !defined(__CLING__)
-# error Not for compilation
+#error Not for compilation
 #else 
 #pragma link off all globals;
 #pragma link off all classes;
@@ -49,7 +49,6 @@
 #pragma link C++ class AliHLTGlobalPromptRecoQAComponent+;
 #pragma link C++ class AliAnalysisTaskExampleV+;
 #ifdef ZMQ
-#pragma link C++ class AliOptionParser+;
 #pragma link C++ class AliHLTZMQsink+;
 #pragma link C++ class AliHLTZMQsource+;
 #endif

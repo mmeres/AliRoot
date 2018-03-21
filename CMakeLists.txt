@@ -85,6 +85,10 @@ endif()
 # Path to additonal modules
 set(CMAKE_MODULE_PATH "${AliRoot_SOURCE_DIR}/cmake")
 
+# Check some compiler flags
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wno-error=misleading-indentation CC_WNOERROR_MISLEADING_INDENTATION)
+
 # AliRoot version extracted from Git repository
 # Sets 4 git variables
 #  - GIT_REFSPEC - complete name of the current reference
@@ -111,6 +115,13 @@ include(cmake/modules/MacroOptionalAddSubdirectory.cmake)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Windows)
   set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 endif (NOT CMAKE_SYSTEM_NAME STREQUAL Windows)
+
+# HLT/ZMQ and HLT/BASE/util need X11
+find_package(X11)
+if(X11_FOUND)
+  get_filename_component(X11_LIB_DIR ${X11_X11_LIB} DIRECTORY)
+  message("Found X11: ${X11_LIB_DIR} ${X11_INCLUDE_DIR}")
+endif(X11_FOUND)
 
 # Optional: Doxygen for reference doc generation
 find_package(Doxygen)
@@ -375,9 +386,14 @@ else()
 
   # AliRoot modules
   set(ALIROOT_MODULES
-      ACORDE AD BCM EMCAL EVE EVGEN FASTSIM FIT FMD HLT HMPID ITS ITSMFT
+      ACORDE AD BCM DRGEN EMCAL EVE EVGEN FASTSIM FIT FMD HLT HMPID ITS ITSMFT
       MONITOR MUON PHOS PMD STARLIGHT STAT STRUCT T0 TEvtGen TOF TPC TRD TRIGGER
       TTherminator VZERO ZDC ALIGN data GRP OCDB QAref)
+
+  # Unneeded modules to disable on DARPM/SHUTTLE builds
+  set(ALIROOT_MODULES_NOONLINE
+      MONITOR EVGEN DIME DRGEN PYTHIA6 PYTHIA8 STARLIGHT TAmpt TDPMjet TEPEMGEN
+      THbtp THerwig THijing THydjet TPHIC TTherminator TUHKMgen)
 
   # AliRoot modules requiring OpenGL
   set(ALIROOT_MODULES_OPENGL
@@ -407,6 +423,13 @@ else()
   else()
     string(REPLACE ";" " " ALIROOT_MODULES_FORTRAN_FLAT "${ALIROOT_MODULES_FORTRAN}")
     message(WARNING "The following modules require Fortran and will not be built: ${ALIROOT_MODULES_FORTRAN_FLAT}")
+  endif()
+
+  # We disable some unneeded modules if this is a SHUTTLE or DARPM build
+  if((SHUTTLE OR DARPM OR "$ENV{ALIROOT_ONLINE_MODE}") AND NOT "$ENV{HLT_ONLINE_MODE}")
+    string(REPLACE ";" " " ALIROOT_MODULES_NOONLINE_FLAT "${ALIROOT_MODULES_NOONLINE}")
+    message(WARNING "Online build detected: disabling unneeded modules: ${ALIROOT_MODULES_NOONLINE_FLAT}")
+    list(APPEND EXCLUDE_MODULES "${ALIROOT_MODULES_NOONLINE}")
   endif()
 
   # Selectively exclude modules (with -DEXCLUDE_MODULES="mod1;mod2"...)

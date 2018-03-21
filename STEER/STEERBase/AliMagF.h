@@ -13,6 +13,8 @@
 
 //#include <TGeoGlobalMagField.h>
 #include <TVirtualMagField.h>
+
+class AliMagFast;
 class AliMagWrapCheb;
 
 class AliMagF : public TVirtualMagField
@@ -25,8 +27,10 @@ class AliMagF : public TVirtualMagField
   //
   AliMagF();
   AliMagF(const char *name, const char* title,Double_t factorSol=1., Double_t factorDip=1., 
-	  BMap_t maptype = k5kG, BeamType_t btype=kBeamTypepp, Double_t benergy=-1,	
+	  BMap_t maptype = k5kG, BeamType_t btype=kBeamTypepp, Double_t benergy=-1, float a2z=1.0,
 	  Int_t integ=2, Double_t fmax=15,const char* path="$(ALICE_ROOT)/data/maps/mfchebKGI_sym.root");
+  AliMagF(const char *name, const char* title,Double_t factorSol, Double_t factorDip, 
+	  BMap_t maptype, BeamType_t btype, Double_t benergy, Int_t integ, Double_t fmax,const char* path="$(ALICE_ROOT)/data/maps/mfchebKGI_sym.root");
   AliMagF(const AliMagF& src);             
   AliMagF& operator=(const AliMagF& src);
   virtual ~AliMagF();
@@ -38,6 +42,8 @@ class AliMagF : public TVirtualMagField
   void       GetTPCRatIntCyl(const Double_t *rphiz, Double_t *b) const;
   Double_t   GetBz(const Double_t *xyz)                          const;
   //
+  void        AllowFastField(Bool_t v=kTRUE);
+  AliMagFast* GetFastField()                                    const {return fFastField;}
   AliMagWrapCheb* GetMeasuredMap()                              const {return fMeasuredMap;}
   //
   // former AliMagF methods or their aliases
@@ -70,18 +76,22 @@ class AliMagF : public TVirtualMagField
   static Int_t GetPolarityConvention()                                {return Int_t(fgkPolarityConvention);}
   static AliMagF* CreateFieldMap(Float_t l3Current=-30000., Float_t diCurrent=-6000., 
 				 Int_t convention=0, Bool_t uniform = kFALSE, 
-				 Float_t beamenergy=7000, const Char_t* btype="pp",
+				 Float_t beamenergy=7000, const Char_t* btype="pp", int az0=0, int az1=0,
 				 const Char_t* path="$(ALICE_ROOT)/data/maps/mfchebKGI_sym.root",
 				 Bool_t returnNullOnInvalidCurrent = kFALSE);
   //
+  static void   SetFastFieldDefault(Bool_t v) {fgAllowFastField = v;}
+  static Bool_t GetFastFieldDefault()         {return fgAllowFastField;}
+  
  protected:
   // not supposed to be changed during the run, set only at the initialization via constructor
-  void         InitMachineField(BeamType_t btype, Double_t benergy);
+  void         InitMachineField(BeamType_t btype, Double_t benergy, float a2z=1.0);
   void         SetBeamType(BeamType_t type)                           {fBeamType = type;}
   void         SetBeamEnergy(Float_t energy)                          {fBeamEnergy = energy;}
   //
  protected:
   AliMagWrapCheb*  fMeasuredMap;     //! Measured part of the field map
+  AliMagFast*      fFastField;       //! optional fast param
   BMap_t           fMapType;         // field map type
   Double_t         fSolenoid;        // Solenoid field setting
   BeamType_t       fBeamType;        // Beam type: A-A (fBeamType=0) or p-p (fBeamType=1)
@@ -104,6 +114,7 @@ class AliMagF : public TVirtualMagField
   //
   static const Double_t  fgkSol2DipZ;    // conventional Z of transition from L3 to Dipole field
   static const UShort_t  fgkPolarityConvention; // convention for the mapping of the curr.sign on main component sign
+  static Bool_t          fgAllowFastField;  // default setting for fast field usage
   //   
   ClassDef(AliMagF, 2)           // Class for all Alice MagField wrapper for measured data + Tosca parameterization
 };

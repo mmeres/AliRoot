@@ -65,7 +65,30 @@
 #include "AliESDpid.h"
 
 ClassImp(AliTOFT0v1)
-           
+//____________________________________________________________________________ 
+AliTOFT0v1::AliTOFT0v1(const AliTOFT0v1 &source):
+  TObject(source),
+  fLowerMomBound(source.fLowerMomBound),
+  fUpperMomBound(source.fUpperMomBound),  
+  fTimeCorr(source.fTimeCorr), 
+  fEvent(source.fEvent),
+  fPIDesd(source.fPIDesd),
+  fTracks(new TObjArray(10)),
+  fGTracks(new TObjArray(10)),
+  fTracksT0(new TObjArray(10)),
+  fOptFlag(source.fOptFlag)
+
+{
+  Init(NULL);
+
+  //initialise lookup table for power 3
+  // a set should only have 10 tracks a t maximum
+  // so up to 15 should be more than enough
+  for (Int_t i=0; i<15; ++i) {
+    fLookupPowerThree[i]=ToCalculatePower(3,i);
+  }
+}
+        
 //____________________________________________________________________________ 
 AliTOFT0v1::AliTOFT0v1(AliESDpid *extPID):
   TObject(),
@@ -205,10 +228,13 @@ AliTOFT0v1::Init(AliESDEvent *event)
   fT0SigmaT0def[2]=0.;
   fT0SigmaT0def[3]=0.;
 
+  Reset();
 }
 //____________________________________________________________________________ 
-Double_t * AliTOFT0v1::DefineT0(Option_t *option,Float_t pMinCut,Float_t pMaxCut) 
+Double_t * AliTOFT0v1::DefineT0(Option_t *option,Float_t pMinCut,Float_t pMaxCut,Int_t isCalibrationMode) 
 { 
+  // calibration mode (default=0): 0=no cal, 1=first half sample of tracks, 2=second half sample of tracks
+
   TBenchmark *bench=new TBenchmark();
   bench->Start("t0computation");
 
@@ -258,6 +284,9 @@ Double_t * AliTOFT0v1::DefineT0(Option_t *option,Float_t pMinCut,Float_t pMaxCut
     AliESDtrack *t=fEvent->GetTrack(itrk);
     Double_t momOld=t->GetP();
     Double_t mom=momOld-0.0036*momOld;
+
+    Int_t sample = Int_t(mom*1000)%2 + 1;
+
     if ((t->GetStatus()&AliESDtrack::kTIME)==0) continue;
     if ((t->GetStatus()&AliESDtrack::kTOFout)==0) continue;
     Double_t time=t->GetTOFsignal();
@@ -269,6 +298,8 @@ Double_t * AliTOFT0v1::DefineT0(Option_t *option,Float_t pMinCut,Float_t pMaxCut
 
     if(t->GetIntegratedLength() < 350)continue; //skip decays
     if(t->GetP() > pMinCut && t->GetP() < pMaxCut) continue;
+
+    if(isCalibrationMode && sample!=isCalibrationMode) continue;
 
     meantime+=time;
     fTracks->AddLast(t);
@@ -700,7 +731,7 @@ Float_t AliTOFT0v1::GetMomError(Int_t index, Float_t mom, Float_t texp) const
 
   Double_t mass=kMasses[index+2];
 
-  Float_t sigma = fPIDesd->GetTOFResponse().GetExpectedSigma(mom,texp,mass);
+  Float_t sigma = fPIDesd->GetTOFResponse().GetExpectedSigma(mom,texp*1000,mass);
 
   return sigma;
 }

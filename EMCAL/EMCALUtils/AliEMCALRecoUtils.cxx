@@ -53,7 +53,8 @@ ClassImp(AliEMCALRecoUtils) ;
 ///
 //_____________________________________
 AliEMCALRecoUtils::AliEMCALRecoUtils():
-  fParticleType(0),                       fPosAlgo(0),                            fW0(0), 
+  fParticleType(0),                       fPosAlgo(0),                            
+  fW0(0),                                 fShowerShapeCellLocationType(0),
   fNonLinearityFunction(0),               fNonLinearThreshold(0),
   fSmearClusterEnergy(kFALSE),            fRandom(),
   fCellsRecalibrated(kFALSE),             fRecalibration(kFALSE),                 fEMCALRecalibrationFactors(),
@@ -98,7 +99,8 @@ AliEMCALRecoUtils::AliEMCALRecoUtils():
 //______________________________________________________________________
 AliEMCALRecoUtils::AliEMCALRecoUtils(const AliEMCALRecoUtils & reco) 
 : TNamed(reco), 
-  fParticleType(reco.fParticleType),                         fPosAlgo(reco.fPosAlgo),     fW0(reco.fW0),
+  fParticleType(reco.fParticleType),                         fPosAlgo(reco.fPosAlgo),     
+  fW0(reco.fW0),                                             fShowerShapeCellLocationType(reco.fShowerShapeCellLocationType),
   fNonLinearityFunction(reco.fNonLinearityFunction),         fNonLinearThreshold(reco.fNonLinearThreshold),
   fSmearClusterEnergy(reco.fSmearClusterEnergy),             fRandom(),
   fCellsRecalibrated(reco.fCellsRecalibrated),
@@ -137,7 +139,7 @@ AliEMCALRecoUtils::AliEMCALRecoUtils(const AliEMCALRecoUtils & reco)
 {  
   for (Int_t i = 0; i < 15 ; i++) { fMisalRotShift[i]      = reco.fMisalRotShift[i]      ; 
                                     fMisalTransShift[i]    = reco.fMisalTransShift[i]    ; }
-  for (Int_t i = 0; i < 7  ; i++) { fNonLinearityParams[i] = reco.fNonLinearityParams[i] ; }
+  for (Int_t i = 0; i < 10  ; i++) { fNonLinearityParams[i] = reco.fNonLinearityParams[i] ; }
   for (Int_t i = 0; i < 3  ; i++) { fSmearClusterParam[i]  = reco.fSmearClusterParam[i]  ; }
   for (Int_t j = 0; j < 5  ; j++) { fMCGenerToAccept[j]    = reco.fMCGenerToAccept[j]    ; }
 }
@@ -153,12 +155,13 @@ AliEMCALRecoUtils & AliEMCALRecoUtils::operator = (const AliEMCALRecoUtils & rec
   
   for (Int_t i = 0; i < 15 ; i++) { fMisalTransShift[i]    = reco.fMisalTransShift[i]    ; 
     fMisalRotShift[i]      = reco.fMisalRotShift[i]      ; }
-  for (Int_t i = 0; i < 7  ; i++) { fNonLinearityParams[i] = reco.fNonLinearityParams[i] ; }
+  for (Int_t i = 0; i < 10  ; i++) { fNonLinearityParams[i] = reco.fNonLinearityParams[i] ; }
   for (Int_t i = 0; i < 3  ; i++) { fSmearClusterParam[i]  = reco.fSmearClusterParam[i]  ; }   
   
   fParticleType              = reco.fParticleType;
   fPosAlgo                   = reco.fPosAlgo; 
   fW0                        = reco.fW0;
+  fShowerShapeCellLocationType = reco.fShowerShapeCellLocationType;
   
   fNonLinearityFunction      = reco.fNonLinearityFunction;
   fNonLinearThreshold        = reco.fNonLinearThreshold;
@@ -407,7 +410,7 @@ Bool_t AliEMCALRecoUtils::CheckCellFiducialRegion(const AliEMCALGeometry* geom,
     return kFALSE;
   }
   
-  //If the distance to the border is 0 or negative just exit accept all clusters
+  // If the distance to the border is 0 or negative just exit accept all clusters
   if (cells->GetType()==AliVCaloCells::kEMCALCell && fNCellsFromEMCALBorder <= 0 ) 
     return kTRUE;
   
@@ -420,45 +423,57 @@ Bool_t AliEMCALRecoUtils::CheckCellFiducialRegion(const AliEMCALGeometry* geom,
   
   if (absIdMax==-1) return kFALSE;
   
-  //Check if the cell is close to the borders:
+  // Check if the cell is close to the borders:
   Bool_t okrow = kFALSE;
   Bool_t okcol = kFALSE;
   
-  if (iSM < 0 || iphi < 0 || ieta < 0 ) {
+  if (iSM < 0 || iphi < 0 || ieta < 0 ) 
+  {
     AliFatal(Form("Negative value for super module: %d, or cell ieta: %d, or cell iphi: %d, check EMCAL geometry name\n",
                   iSM,ieta,iphi));
     return kFALSE; // trick coverity
   }
   
-  //Check rows/phi
+  // Check rows/phi
   Int_t iPhiLast = 24;
-   if( geom->GetSMType(iSM) == AliEMCALGeometry::kEMCAL_Half ) iPhiLast /= 2;
-   else if (  geom->GetSMType(iSM) == AliEMCALGeometry::kEMCAL_3rd ) iPhiLast /= 3;// 1/3 sm case
-  
+   if      ( geom->GetSMType(iSM) == AliEMCALGeometry::kEMCAL_Half ) iPhiLast /= 2;
+   else if ( geom->GetSMType(iSM) == AliEMCALGeometry::kEMCAL_3rd  ) iPhiLast /= 3;// 1/3 sm case
+   else if ( geom->GetSMType(iSM) == AliEMCALGeometry::kDCAL_Ext   ) iPhiLast /= 3;// 1/3 sm case
+
   if(iphi >= fNCellsFromEMCALBorder && iphi < iPhiLast - fNCellsFromEMCALBorder) okrow = kTRUE; 
 
-  //Check columns/eta
+  // Check columns/eta
   Int_t iEtaLast = 48;
-  if(!fNoEMCALBorderAtEta0 || geom->IsDCALSM(iSM)) {// conside inner border
-     if(  geom->GetSMType(iSM) == AliEMCALGeometry::kDCAL_Standard )  iEtaLast = iEtaLast*2/3;        
-     if(ieta  > fNCellsFromEMCALBorder && ieta < iEtaLast-fNCellsFromEMCALBorder) okcol = kTRUE;  
-  } else {
-    if (iSM%2==0) {
-     if (ieta >= fNCellsFromEMCALBorder)     okcol = kTRUE;  
-    } else {
-     if(ieta <  iEtaLast-fNCellsFromEMCALBorder)  okcol = kTRUE; 
+  if ( !fNoEMCALBorderAtEta0 || geom->GetSMType(iSM) == AliEMCALGeometry::kDCAL_Standard ) 
+  {
+    // consider inner border
+    if ( geom->IsDCALSM(iSM) ) iEtaLast = iEtaLast*2/3;        
+  
+    if ( ieta  > fNCellsFromEMCALBorder && ieta < iEtaLast-fNCellsFromEMCALBorder ) okcol = kTRUE;  
+  } 
+  else 
+  {
+    if (iSM%2==0) 
+    {
+     if (ieta >= fNCellsFromEMCALBorder)           okcol = kTRUE;  
+    } 
+    else 
+    {
+     if (ieta <  iEtaLast-fNCellsFromEMCALBorder)  okcol = kTRUE; 
     }
   }//eta 0 not checked
   
   AliDebug(2,Form("EMCAL Cluster in %d cells fiducial volume: ieta %d, iphi %d, SM %d:  column? %d, row? %d\nq",
                   fNCellsFromEMCALBorder, ieta, iphi, iSM, okcol, okrow));
   
-  if (okcol && okrow) {
-    //printf("Accept\n");
+  if (okcol && okrow) 
+  {
     return kTRUE;
-  } else  {
-    //printf("Reject\n");
+  } 
+  else
+  {
     AliDebug(2,Form("Reject cluster in border, max cell : ieta %d, iphi %d, SM %d\n",ieta, iphi, iSM));
+    
     return kFALSE;
   }
 }  
@@ -900,7 +915,66 @@ Float_t AliEMCALRecoUtils::CorrectClusterEnergyLinearity(AliVCluster* cluster)
       
       break;
     }
+
+  case kPCMv1:
+    {
+      //based on symmetric decays of pi0 meson 
+      // described in the note: https://aliceinfo.cern.ch/Notes/node/211 - Sec 3.1.2 (Test Beam Constrained SDM).
+      // parameters vary from MC to MC
+      //fNonLinearityParams[0] =   0.984876;
+      //fNonLinearityParams[1] =  -9.999609;
+      //fNonLinearityParams[2] =  -4.999891;
+      //fNonLinearityParams[3] =  0.;
+      //fNonLinearityParams[4] =  0.;
+      //fNonLinearityParams[5] =  0.;
+      //fNonLinearityParams[6] =  0.;
+      energy /=  TMath::Power(fNonLinearityParams[0] + exp(fNonLinearityParams[1] + fNonLinearityParams[2]*energy),2);//result coming from calo-conv method
       
+      break;
+    }  
+
+  case kPCMplusBTCv1:
+    {
+      //convolution of TestBeamCorrectedv3 with PCM method
+      //Based on comparing MC truth information to the reconstructed energy of clusters.
+      // described in the note: https://aliceinfo.cern.ch/Notes/node/211 - Sec 3.1.2 (Test Beam Constrained SDM).
+      // parameters vary from MC to MC
+      //fNonLinearityParams[0] =  0.976941;
+      //fNonLinearityParams[1] =  0.162310;
+      //fNonLinearityParams[2] =  1.08689;
+      //fNonLinearityParams[3] =  0.0819592;
+      //fNonLinearityParams[4] =  152.338;
+      //fNonLinearityParams[5] =  30.9594;
+      //fNonLinearityParams[6] =  0.9615;
+      //fNonLinearityParams[7] =   0.984876;
+      //fNonLinearityParams[8] =  -9.999609;
+      //fNonLinearityParams[9] =  -4.999891;
+      energy *= fNonLinearityParams[6]/(fNonLinearityParams[0]*(1./(1.+fNonLinearityParams[1]*exp(-energy/fNonLinearityParams[2]))*1./(1.+fNonLinearityParams[3]*exp((energy-fNonLinearityParams[4])/fNonLinearityParams[5]))));
+      energy /= TMath::Power(fNonLinearityParams[7] + exp(fNonLinearityParams[8] + fNonLinearityParams[9]*energy),2);//result coming from calo-conv method
+      
+      break;
+    }  
+
+  case kPCMsysv1:
+    {
+      // Systematic variation of kPCMv1
+      //Based on comparing MC truth information to the reconstructed energy of clusters.
+      // described in the note: https://aliceinfo.cern.ch/Notes/node/211 - Sec 3.1.2 (Test Beam Constrained SDM).
+      // parameters vary from MC to MC
+      //fNonLinearityParams[0] =  0.0;
+      //fNonLinearityParams[1] =  1.0;
+      //fNonLinearityParams[2] =  1.0;
+      //fNonLinearityParams[3] =  0.0;
+      //fNonLinearityParams[4] =  1.0;
+      //fNonLinearityParams[5] =  0.0;
+      //fNonLinearityParams[6] =  0.0;
+      energy /= TMath::Power( (fNonLinearityParams[0] + fNonLinearityParams[1] * TMath::Power(energy,fNonLinearityParams[2]) ) /
+			      (fNonLinearityParams[3] + fNonLinearityParams[4] * TMath::Power(energy,fNonLinearityParams[5]) ) + fNonLinearityParams[6], 2);//result coming from calo-conv method
+      
+      break;
+    }  
+
+    
     case kNoCorrection:
       AliDebug(2,"No correction on the energy\n");
       break;
@@ -1046,6 +1120,48 @@ void AliEMCALRecoUtils::InitNonLinearityParam()
     fNonLinearityParams[5] = 116.938;   
     fNonLinearityParams[6] = 1.00437;   
   }
+
+if (fNonLinearityFunction == kPCMv1) {
+  //parameters change from MC production to MC production, they need to set for each period
+    fNonLinearityParams[0] =  0.984876;
+    fNonLinearityParams[1] = -9.999609;
+    fNonLinearityParams[2] = -4.999891;
+    fNonLinearityParams[3] = 0.;
+    fNonLinearityParams[4] = 0.;
+    fNonLinearityParams[5] = 0.;
+    fNonLinearityParams[6] = 0.;
+  }
+
+ if (fNonLinearityFunction == kPCMplusBTCv1) {
+   // test beam corrected values convoluted with symmetric meson decays values
+   // for test beam:
+   // https://indico.cern.ch/event/438805/contribution/1/attachments/1145354/1641875/emcalPi027August2015.pdf
+   // for PCM method:
+   // https://aliceinfo.cern.ch/Notes/node/211
+    fNonLinearityParams[0] =  0.976941;
+    fNonLinearityParams[1] =  0.162310;
+    fNonLinearityParams[2] =  1.08689;
+    fNonLinearityParams[3] =  0.0819592;
+    fNonLinearityParams[4] =  152.338;
+    fNonLinearityParams[5] =  30.9594;
+    fNonLinearityParams[6] =  0.9615;
+    fNonLinearityParams[7] =   0.984876;
+    fNonLinearityParams[8] =  -9.999609;
+    fNonLinearityParams[9] =  -4.999891;
+ }
+
+ if (fNonLinearityFunction == kPCMsysv1) {
+   //systematics for kPCMv1
+   // for PCM method:
+   // https://aliceinfo.cern.ch/Notes/node/211
+   fNonLinearityParams[0] =  0.0;
+   fNonLinearityParams[1] =  1.0;
+   fNonLinearityParams[2] =  1.0;
+   fNonLinearityParams[3] =  0.0;
+   fNonLinearityParams[4] =  1.0;
+   fNonLinearityParams[5] =  0.0;
+   fNonLinearityParams[6] =  0.0;
+ }
 }
 
 ///
@@ -1203,6 +1319,26 @@ void AliEMCALRecoUtils::GetMaxEnergyCell(const AliEMCALGeometry *geom,
 }
 
 ///
+/// \return weight of cell for shower shape calculation
+/// If fW0 parameter is negative, apply log weight without trimming.
+///
+/// \param eCell: cluster cell energy
+/// \param eCluster: cluster Energy
+/// \param iSM: supermodule number
+///
+//_________________________________________________________
+Float_t  AliEMCALRecoUtils::GetCellWeight(Float_t eCell, Float_t eCluster) const 
+{ 
+  if (eCell > 0 && eCluster > 0) 
+  {
+   if ( fW0 > 0 ) return TMath::Max( 0., fW0 + TMath::Log( eCell / eCluster ) ) ;
+   else           return TMath::Log( eCluster / eCell ) ; 
+  }
+  else                           
+    return 0. ; 
+}
+
+///
 /// Initialize data members with default values
 ///
 //______________________________________
@@ -1263,7 +1399,7 @@ void AliEMCALRecoUtils::InitParameters()
   }
   
   // Non linearity
-  for (Int_t i = 0; i < 7  ; i++) fNonLinearityParams[i] = 0.; 
+  for (Int_t i = 0; i < 10  ; i++) fNonLinearityParams[i] = 0.; 
   
   // For kBeamTestCorrectedv2 case, but default is no correction
   fNonLinearityParams[0] =  0.983504;
@@ -2068,13 +2204,19 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
   Double_t etaMean = 0.;
   Double_t phiMean = 0.;
   
+  Double_t pGlobal[3];
+  
   // Loop on cells, calculate the cluster energy, in case a cut on cell energy is added,
   // or the non linearity correction was applied
   // and to check if the cluster is between 2 SM in eta
   Int_t   iSM0   = -1;
   Bool_t  shared = kFALSE;
   Float_t energy = 0;
+  
   enAfterCuts = 0;
+  l0 = 0;  l1 = 0;   
+  disp = 0; dEta = 0; dPhi = 0;
+  sEta = 0; sPhi = 0; sEtaPhi = 0;
   
   for (Int_t iDigit=0; iDigit < cluster->GetNCells(); iDigit++)
   {
@@ -2096,7 +2238,6 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     if (IsRecalibrationOn()) 
       recalFactor = GetEMCALChannelRecalibrationFactor(iSupMod,ieta,iphi);
     
-    
     eCell  = cells->GetCellAmplitude(absId)*fraction*recalFactor;
     tCell  = cells->GetCellTime     (absId);
     isLowGain = !(cells->GetCellHighGain(absId));//HG = false -> LG = true
@@ -2111,6 +2252,7 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     if(eCell > cellEcut && TMath::Abs(tCell) < cellTimeCut)
       enAfterCuts += eCell;
   } // cell loop
+    
   
   // Loop on cells to calculate weights and shower shape terms parameters
   for (Int_t iDigit=0; iDigit < cluster->GetNCells(); iDigit++) 
@@ -2144,9 +2286,37 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     {
       w  = GetCellWeight(eCell, energy);
       
-      etai=(Double_t)ieta;
-      phii=(Double_t)iphi;  
-      
+      // Cell index
+      if     ( fShowerShapeCellLocationType == 0 )
+      {
+        etai=(Double_t)ieta;
+        phii=(Double_t)iphi;  
+      }
+      // Cell angle location
+      else if( fShowerShapeCellLocationType == 1 )
+      {
+        geom->EtaPhiFromIndex(absId, etai, phii);
+        etai *= TMath::RadToDeg(); // change units to degrees instead of radians
+        phii *= TMath::RadToDeg(); // change units to degrees instead of radians       
+      }
+      else
+      {
+        geom->GetGlobal(absId,pGlobal);
+        
+        // Cell x-z location
+        if( fShowerShapeCellLocationType == 2 )
+        {
+          etai = pGlobal[2];
+          phii = pGlobal[0];
+        }
+        // Cell r-z location
+        else
+        {
+          etai = pGlobal[2];
+          phii = TMath::Sqrt(pGlobal[0]*pGlobal[0]+pGlobal[1]*pGlobal[1]); 
+        }
+      }
+               
       if (w > 0.0) 
       {
         wtot += w ;
@@ -2163,6 +2333,8 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     else if(eCell > 0.05)
       AliDebug(2,Form("Wrong energy in cell %f and/or cluster %f\n", eCell, cluster->E()));
   } // cell loop
+  
+  //printf("sEta %f sPhi %f etaMean %f phiMean %f sEtaPhi %f wtot %f\n",sEta,sPhi,etaMean,phiMean,sEtaPhi, wtot);
   
   // Normalize to the weight  
   if (wtot > 0) 
@@ -2204,8 +2376,37 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     {
       w  = GetCellWeight(eCell,cluster->E());
       
-      etai=(Double_t)ieta;
-      phii=(Double_t)iphi;    
+      // Cell index
+      if     ( fShowerShapeCellLocationType == 0 )
+      {
+        etai=(Double_t)ieta;
+        phii=(Double_t)iphi;  
+      }
+      // Cell angle location
+      else if( fShowerShapeCellLocationType == 1 )
+      {
+        geom->EtaPhiFromIndex(absId, etai, phii);
+        etai *= TMath::RadToDeg(); // change units to degrees instead of radians
+        phii *= TMath::RadToDeg(); // change units to degrees instead of radians       
+      }
+      else
+      {
+        geom->GetGlobal(absId,pGlobal);
+        
+        // Cell x-z location
+        if( fShowerShapeCellLocationType == 2 )
+        {
+          etai = pGlobal[2];
+          phii = pGlobal[0];
+        }
+        // Cell r-z location
+        else
+        {
+          etai = pGlobal[2];
+          phii = TMath::Sqrt(pGlobal[0]*pGlobal[0]+pGlobal[1]*pGlobal[1]); 
+        }
+      }
+      
       if (w > 0.0) 
       { 
         disp +=  w *((etai-etaMean)*(etai-etaMean)+(phii-phiMean)*(phii-phiMean)); 
@@ -2233,6 +2434,9 @@ void AliEMCALRecoUtils::RecalculateClusterShowerShapeParametersWithCellCuts(cons
     
     l0 = (0.5 * (sEta + sPhi) + TMath::Sqrt( 0.25 * (sEta - sPhi) * (sEta - sPhi) + sEtaPhi * sEtaPhi ));
     l1 = (0.5 * (sEta + sPhi) - TMath::Sqrt( 0.25 * (sEta - sPhi) * (sEta - sPhi) + sEtaPhi * sEtaPhi ));
+    
+    //printf("sEta %f sPhi %f etaMean %f phiMean %f sEtaPhi %f wtot %f l0 %f l1 %f\n",sEta,sPhi,etaMean,phiMean,sEtaPhi, wtot,l0,l1);
+
   } 
   else 
   {
@@ -3577,7 +3781,7 @@ void AliEMCALRecoUtils::Print(const Option_t *) const
                                   fMisalRotShift[i*3],  fMisalRotShift[i*3+1],  fMisalRotShift[i*3+2]   );
   printf("\tNon linearity function %d, parameters:\n", fNonLinearityFunction);
   if (fNonLinearityFunction != 3) // print only if not kNoCorrection
-    for (Int_t i=0; i<6; i++) printf("param[%d]=%f\n",i, fNonLinearityParams[i]);
+    for (Int_t i=0; i<10; i++) printf("param[%d]=%f\n",i, fNonLinearityParams[i]);
   
   printf("\tPosition Recalculation option %d, Particle Type %d, fW0 %2.2f, Recalibrate Data %d \n",fPosAlgo,fParticleType,fW0, fRecalibration);
 

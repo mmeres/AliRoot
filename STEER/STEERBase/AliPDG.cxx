@@ -87,7 +87,7 @@ void AliPDG::AddParticlesToPdgDataBase()
   pdgDB->AddParticle("A_0+    ", " ", 0.9960, kFALSE, 0.0,+3, "meson",  9000211);
   pdgDB->AddParticle("A_0-    ", " ", 0.9960, kFALSE, 0.0,-3, "meson", -9000211);
 
-  pdgDB->AddParticle("F0P0    ", " ", 0.9960, kFALSE, 0.0, 0, "meson",  9010221);
+  //pdgDB->AddParticle("F0P0    ", " ", 0.9960, kFALSE, 0.0, 0, "meson",  9010221);
 
   pdgDB->AddParticle("KDL_2+  ", " ", 1.773,  kFALSE, 0.0,+3, "meson",   10325);
   pdgDB->AddParticle("KDL_2-  ", " ", 1.773,  kFALSE, 0.0,-3, "meson",  -10325);
@@ -218,10 +218,34 @@ void AliPDG::AddParticlesToPdgDataBase()
 
   ionCode = -1010020040;
   if(!pdgDB->GetParticle(ionCode)){
-    pdgDB->AddParticle("AntiHyperTriton","AntiHyperTriton", 3.929, kFALSE,
+    pdgDB->AddParticle("AntiHyperhelium4","AntiHyperhelium4", 3.929, kFALSE,
 		       2.5e-15, 6, "Ion", ionCode);
   }
 
+  ionCode = 1010020050;
+  if(!pdgDB->GetParticle(ionCode)){
+    pdgDB->AddParticle("Hyperhelium5","Hyperhelium5", 4.841, kFALSE,
+               2.5e-15, 6, "Ion", ionCode);
+  }
+    
+  ionCode = -1010020050;
+  if(!pdgDB->GetParticle(ionCode)){
+    pdgDB->AddParticle("AntiHyperhelium5","AntiHyperhelium5", 4.841, kFALSE,
+               2.5e-15, 6, "Ion", ionCode);
+  }
+    
+    ionCode = 1020010040;
+    if(!pdgDB->GetParticle(ionCode)){
+        pdgDB->AddParticle("DoubleHyperhydrogen4","DoubleHyperhydrogen4", 4.106, kFALSE,
+                           2.5e-15, 6, "Ion", ionCode);
+    }
+    
+    ionCode = -1020010040;
+    if(!pdgDB->GetParticle(ionCode)){
+        pdgDB->AddParticle("DoubleAntiHyperhydrogen4","DoubleAntiHyperhydrogen4", 4.106, kFALSE,
+                           2.5e-15, 6, "Ion", ionCode);
+    }
+    
   ionCode = 1010000020;
   if(!pdgDB->GetParticle(ionCode)){
     pdgDB->AddParticle("LambdaNeutron","LambdaNeutron", 2.054, kFALSE,
@@ -248,13 +272,13 @@ void AliPDG::AddParticlesToPdgDataBase()
 
   ionCode = 1010000030;
   if(!pdgDB->GetParticle(ionCode)){
-    pdgDB->AddParticle("LambdaNeutronNeutron","LambdaNeutronNeutron", 2.982, kFALSE,
+    pdgDB->AddParticle("LambdaNeutronNeutron","LambdaNeutronNeutron", 2.99, kFALSE,
 		       2.5e-15, 0, "Special", ionCode);
   }
 
   ionCode = -1010000030;
   if(!pdgDB->GetParticle(ionCode)){
-    pdgDB->AddParticle("AntiLambdaNeutronNeutron","AntiLambdaNeutronNeutron", 2.982, kFALSE,
+    pdgDB->AddParticle("AntiLambdaNeutronNeutron","AntiLambdaNeutronNeutron", 2.99, kFALSE,
 		       2.5e-15, 0, "Special", ionCode);
   }
 
@@ -347,6 +371,23 @@ void AliPDG::AddParticlesToPdgDataBase()
 		       0.185, 0, "Resonance", ionCode);
   }
 
+  // Xi-/+ (1820)
+  ionCode = 123314;
+  if (!pdgDB->GetParticle(ionCode)) {
+    pdgDB->AddParticle("Xi_Minus_1820","Xi_Minus_1820",1.8234,kFALSE,0.024,-3,"Resonance",ionCode);
+  }
+  if (!pdgDB->GetParticle(-ionCode)) {
+    pdgDB->AddParticle("Xi_Plus_1820","Xi_Plus_1820",1.8234,kFALSE,0.024,3,"Resonance",-ionCode);
+  }
+
+  // Xi0 (1820)
+  ionCode = 123324;
+  if (!pdgDB->GetParticle(ionCode)) {
+    pdgDB->AddParticle("Xi_0_1820","Xi_0_1820",1.8234,kFALSE,0.024,0,"Resonance",ionCode);
+  }
+  if (!pdgDB->GetParticle(-ionCode)) {
+    pdgDB->AddParticle("Xi_0_Bar_1820","Xi_0_Bar_1820",1.8234,kFALSE,0.024,0,"Resonance",-ionCode);
+  }
 
   // Ps - hidden strange (s-sbar) pentaquarks
 

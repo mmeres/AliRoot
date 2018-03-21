@@ -137,7 +137,13 @@
 #include "AliMathBase.h"
 #include <math.h>
 //
+#include <vector>
 #include "AliESDfriendTrack.h"
+#include <TArrayS.h>
+#include "AliMCEvent.h"
+#include "AliRun.h"
+#include "AliMC.h"
+
 
 using std::cout;
 using std::cerr;
@@ -185,7 +191,8 @@ AliTPCtracker::AliTPCtracker()
   fFreeSeedsID(500),
   fNFreeSeeds(0),
   fLastSeedID(-1),
-  fAccountDistortions(0)
+  fAccountDistortions(0),
+  fMCtrackNClTree(0)
 {
   //
   // default constructor
@@ -432,7 +439,8 @@ AliTPCtracker::AliTPCtracker(const AliTPCParam *par):
   fFreeSeedsID(500),
   fNFreeSeeds(0),
   fLastSeedID(-1),
-  fAccountDistortions(0)
+  fAccountDistortions(0),
+  fMCtrackNClTree(0)
 {
   //---------------------------------------------------------------------
   // The main TPC tracker constructor
@@ -532,7 +540,8 @@ AliTPCtracker::AliTPCtracker(const AliTPCtracker &t):
   fFreeSeedsID(500),
   fNFreeSeeds(0),
   fLastSeedID(-1),
-  fAccountDistortions(0)
+  fAccountDistortions(0),
+  fMCtrackNClTree(0)
 {
   //------------------------------------
   // dummy copy constructor
@@ -580,6 +589,18 @@ AliTPCtracker::~AliTPCtracker() {
   delete fHelixPool;
   if (fETPPool) fETPPool->Delete();
   delete fETPPool;
+  //
+  if (fMCtrackNClTree) {
+    TDirectory* flout = fMCtrackNClTree->GetDirectory();
+    flout->cd();
+    fMCtrackNClTree->Write();
+    delete fMCtrackNClTree;
+    if (flout->InheritsFrom("TFile")) {
+      flout->Close();
+      delete flout;
+    }
+  }
+
 }
 
 
@@ -1558,8 +1579,120 @@ Int_t  AliTPCtracker::LoadClusters()
   }
   printf("RS:AccumulatedSpace: %d for %d | pointers: %d\n",maxAcc,nclEv,capacity);
   */
+
+  if (AliTPCReconstructor::GetCountMCTrackClusters()) {
+    static std::vector<short> nclPerTrack,nclMPerTrack;
+    static Int_t nclTot=0, nclOrphan=0, nMCTracks;
+    if (!fMCtrackNClTree) {
+      TFile* outF = TFile::Open("nclTPCperMCtrack.root","RECREATE");
+      fMCtrackNClTree = new TTree("nclPerMCtrack","N TPC clusters per MC track");
+      fMCtrackNClTree->Branch("nMCTracks",&nMCTracks);
+      fMCtrackNClTree->Branch("nclTot",&nclTot);
+      fMCtrackNClTree->Branch("nclOrphan",&nclOrphan);
+      fMCtrackNClTree->Branch("nclPerTrack",&nclPerTrack);
+      fMCtrackNClTree->Branch("nclMPerTrack",&nclMPerTrack);
+    }
+    nMCTracks = 0;
+    nclTot = 0;
+    nclOrphan = 0;
+    while(1) {
+      const AliMCEvent* mcEv = AliReconstructor::GetMCEvent();
+      if (!mcEv) { // we need to filter out labels from bg event in absence of full MCevent info
+	AliRunLoader *rl = AliRunLoader::Instance();
+	TTree* trK = 0;
+	if(!rl || !(trK=(TTree*)rl->TreeK())) {
+	  AliWarning("MCInfo not accessible, will not count clusters per MC track");
+	  break;
+	}
+	nMCTracks = trK->GetEntries();
+      }
+      else { 
+	nMCTracks = mcEv->GetNumberOfTracks();
+      }
+      //
+      nclPerTrack.clear();
+      nclPerTrack.resize(nMCTracks,0);
+      nclMPerTrack.clear();
+      nclMPerTrack.resize(nMCTracks,0);
+      int lbReal[3];
+      if (nMCTracks) {
+	for (Int_t sec=0;sec<fkNOS;sec++) {
+	  for (Int_t row=0;row<fInnerSec->GetNRows();row++) {
+	    TClonesArray *cla = fInnerSec[sec][row].GetClusters1();
+	    for (Int_t icl =0;icl< fInnerSec[sec][row].GetN1();icl++) {
+	      AliTPCclusterMI* cl = (AliTPCclusterMI*) cla->At(icl);
+	      nclTot++;
+	      int nlb = GetAdjustedLabels(cl,lbReal);
+	      if (!nlb) nclOrphan++;
+	      for (int i=nlb;i--;) {
+		nclPerTrack[lbReal[i]]++;
+		nclMPerTrack[lbReal[i]] += nlb; // to account for clusters with mult. labels
+	      }
+	    }
+	    cla = fInnerSec[sec][row].GetClusters2();
+	    for (Int_t icl =0;icl< fInnerSec[sec][row].GetN2();icl++) {
+	      AliTPCclusterMI* cl = (AliTPCclusterMI*) cla->At(icl);
+	      nclTot++;
+	      int nlb = GetAdjustedLabels(cl,lbReal);
+	      if (!nlb) nclOrphan++;
+	      for (int i=nlb;i--;) {
+		nclPerTrack[lbReal[i]]++;
+		nclMPerTrack[lbReal[i]] += nlb; // to account for clusters with mult. labels
+	      }
+	    }
+	  }
+	}
+	for (Int_t sec=0;sec<fkNOS;sec++) {
+	  for (Int_t row=0;row<fOuterSec->GetNRows();row++) {
+	    TClonesArray *cla = fOuterSec[sec][row].GetClusters1();
+	    for (Int_t icl =0;icl< fOuterSec[sec][row].GetN1();icl++) {
+	      AliTPCclusterMI* cl = (AliTPCclusterMI*) cla->At(icl);
+	      nclTot++;
+	      int nlb = GetAdjustedLabels(cl,lbReal);
+	      if (!nlb) nclOrphan++;
+	      for (int i=nlb;i--;) {
+		nclPerTrack[lbReal[i]]++;
+		nclMPerTrack[lbReal[i]] += nlb; // to account for clusters with mult. labels
+	      }
+	    }
+	    cla = fOuterSec[sec][row].GetClusters2();
+	    for (Int_t icl =0;icl< fOuterSec[sec][row].GetN2();icl++) {
+	      AliTPCclusterMI* cl = (AliTPCclusterMI*) cla->At(icl);
+	      nclTot++;
+	      int nlb = GetAdjustedLabels(cl,lbReal);
+	      if (!nlb) nclOrphan++;
+	      for (int i=nlb;i--;) {
+		nclPerTrack[lbReal[i]]++;
+		nclMPerTrack[lbReal[i]] += nlb; // to account for clusters with mult. labels
+	      }
+	    }
+	  }
+	}
+      }
+      fMCtrackNClTree->Fill();
+      break;	
+    } // while(1)
+  } 
+
   return 0;
 }
+
+int AliTPCtracker::GetAdjustedLabels(const AliTPCclusterMI* cl, int *lbReal)
+{
+  const AliMCEvent* mcEv = AliReconstructor::GetMCEvent();
+  int nlb=0;
+  for (int ilb=0;ilb<3;ilb++) {
+    int lbl = cl->GetLabel(ilb);   
+    if (lbl<0) break;
+    // check for duplicates 
+    Bool_t skip = kFALSE;
+    for (int l0=ilb;l0--;) if (lbl==cl->GetLabel(l0)) skip = kTRUE;
+    if (skip) continue;
+    lbReal[nlb++] = mcEv ? mcEv->Raw2MergedLabel(lbl) : lbl;
+  }
+  return nlb;
+}
+
 
 void  AliTPCtracker::CalculateXtalkCorrection(){
   //
@@ -2166,10 +2299,26 @@ void  AliTPCtracker::ApplyTailCancellation(){
   // Retrieve
   TObjArray *ionTailArr = (TObjArray*)AliTPCcalibDB::Instance()->GetIonTailArray();
   if (!ionTailArr) {AliFatal("TPC - Missing IonTail OCDB object");}
-  TObject *rocFactorIROC  = ionTailArr->FindObject("factorIROC");
-  TObject *rocFactorOROC  = ionTailArr->FindObject("factorOROC");   
-  Float_t factorIROC      = (atof(rocFactorIROC->GetTitle()));
-  Float_t factorOROC      = (atof(rocFactorOROC->GetTitle()));
+  Float_t factorIROC=2, factorOROC=2;
+  //if (AliReconstructor::GetMCEvent()){     // if is MC event reconstruction  - this does not work
+  if (gSystem->AccessPathName("TPC.SDigits.root",kFileExists)==kFALSE){ // Is MC data?
+    // TODO -THIS IS HACK - apply MC ion tail correction onnly in case TPC summable digits exist. AccessPathName - use inverted logic
+    TObject *rocFactorIROC  = ionTailArr->FindObject("factorIROCMC");
+    TObject *rocFactorOROC  = ionTailArr->FindObject("factorOROCMC");
+    if (rocFactorIROC==NULL){
+      rocFactorIROC  = ionTailArr->FindObject("factorIROC");
+      rocFactorOROC  = ionTailArr->FindObject("factorOROC");
+    }
+    factorIROC      = (atof(rocFactorIROC->GetTitle()));
+    factorOROC      = (atof(rocFactorOROC->GetTitle()));
+    ::Info("AliTPCtracker::ApplyTailCancellation","Applied MC ion tail correction\t%f\t%f", factorIROC, factorOROC);
+  }else{                                  // Get ion tail correction factor for real data
+    TObject *rocFactorIROC  = ionTailArr->FindObject("factorIROC");
+    TObject *rocFactorOROC  = ionTailArr->FindObject("factorOROC");
+    factorIROC      = (atof(rocFactorIROC->GetTitle()));
+    factorOROC      = (atof(rocFactorOROC->GetTitle()));
+    ::Info("AliTPCtracker::ApplyTailCancellation","Applied raw data ion tail correction\t%f\t%f", factorIROC, factorOROC);
+  }
 
   // find the number of clusters for the whole TPC (nclALL)
   Int_t nclALL=0;

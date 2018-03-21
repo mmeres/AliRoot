@@ -385,7 +385,7 @@ public:
   TClonesArray* GetPileupVerticesTracks() const {return (TClonesArray*)fTrkPileupVertices;}
   TClonesArray* GetPileupVerticesSPD()    const {return (TClonesArray*)fSPDPileupVertices;}
 
-  virtual Bool_t  IsPileupFromSPD(Int_t minContributors=3, 
+  virtual Bool_t  IsPileupFromSPD(Int_t minContributors=5, 
 				  Double_t minZdist=0.8, 
 				  Double_t nSigmaZdist=3., 
 				  Double_t nSigmaDiamXY=2., 
@@ -466,7 +466,7 @@ public:
   }
 
   void AddTrdTracklet(const AliESDTrdTracklet *trkl);
-  void AddTrdTracklet(UInt_t trackletWord, Short_t hcid, Int_t label = -1);
+  void AddTrdTracklet(UInt_t trackletWord, Short_t hcid, const Int_t *label = 0);
 
   using AliVEvent::GetV0;
   AliESDv0 *GetV0(Int_t i) const {

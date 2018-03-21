@@ -15,6 +15,7 @@
 
 #include "TObject.h"
 #include "TClonesArray.h"
+#include <string>
 
 class AliEMCALTriggerSTUDCSConfig;
 class AliEMCALTriggerTRUDCSConfig;
@@ -26,6 +27,21 @@ public:
   
   AliEMCALTriggerDCSConfig();
   virtual ~AliEMCALTriggerDCSConfig();
+
+  /**
+   * @brief Equalty operator
+   * 
+   * Checks if two DCS configs are the same. For equalty all both DCS configurations 
+   * and all TRU configurations must match.
+   */
+  bool operator==(const AliEMCALTriggerDCSConfig &other) const;
+
+	/**
+	 * @brief Serialize object to JSON format
+	 * 
+	 * @return JSON-serialized trigger DCS config object 
+	 */
+  std::string ToJSON() const;
   
   void                         SetTRUArr(TClonesArray* const ta)             { fTRUArr    = ta; }
   inline void                  SetSTUObj(AliEMCALTriggerSTUDCSConfig* so, Bool_t isDCAL = false);

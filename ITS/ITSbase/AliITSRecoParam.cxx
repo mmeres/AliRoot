@@ -74,6 +74,7 @@ AliITSRecoParam::AliITSRecoParam() : AliDetectorRecoParam(),
  fVtxr3DPhiCutTight(0.),
  fVtxr3DDCACut(0.),
  fVtxr3DPileupAlgo(1),
+ fVtxr3DNclustersForHighMultAlgo(500),
  fVtxr3DHighMultAlgo(1),
  fMaxSnp(1.),
  fNSigmaYLayerForRoadY(0),
@@ -435,6 +436,11 @@ AliITSRecoParam *AliITSRecoParam::GetHighFluxParam()
  param->fSigmaXDeadZoneHit2 = 0.004/12.;
  param->fSigmaZDeadZoneHit2 = 0.001/12.;
  param->fXPassDeadZoneHits = 0.018;
+
+ // ITS SA tracker windows
+ param->SetNLoopsSA(20);
+ param->fMaxPhiSA = 0.07;
+ param->fMaxLambdaSA = 0.04;
  //
  // mult reco
  param->fMultCutPxDrSPDin = 0.1;

@@ -28,9 +28,6 @@
 #include "AliHLTTPCCASliceOutput.h"
 
 #include "AliHLTTPCCADef.h"
-#include "AliHLTTPCCAMerger.h"
-#include "AliHLTTPCCAMergerOutput.h"
-#include "AliHLTTPCCATrackConvertor.h"
 
 #include "AliHLTTPCGMMerger.h"
 #include "AliHLTTPCGMMergedTrack.h"
@@ -56,12 +53,12 @@ ClassImp( AliHLTTPCCAGlobalMergerComponent )
 
 
 AliHLTTPCCAGlobalMergerComponent::AliHLTTPCCAGlobalMergerComponent()
-: AliHLTProcessor(), fVersion(1), fGlobalMergerVersion0( 0 ), fGlobalMerger(0), fSolenoidBz( 0 ), fClusterErrorCorrectionY(0), fClusterErrorCorrectionZ(0), fBenchmark("GlobalMerger")
+: AliHLTProcessor(), fGlobalMerger(0), fSolenoidBz( 0 ), fClusterErrorCorrectionY(0), fClusterErrorCorrectionZ(0), fNWays(1), fNWaysOuter(0), fBenchmark("GlobalMerger")
 {
   // see header file for class documentation
 }
 
-AliHLTTPCCAGlobalMergerComponent::AliHLTTPCCAGlobalMergerComponent( const AliHLTTPCCAGlobalMergerComponent & ):AliHLTProcessor(), fVersion(1), fGlobalMergerVersion0( 0 ), fGlobalMerger(0), fSolenoidBz( 0 ), fClusterErrorCorrectionY(0), fClusterErrorCorrectionZ(0), fBenchmark("GlobalMerger")
+AliHLTTPCCAGlobalMergerComponent::AliHLTTPCCAGlobalMergerComponent( const AliHLTTPCCAGlobalMergerComponent & ):AliHLTProcessor(), fGlobalMerger(0), fSolenoidBz( 0 ), fClusterErrorCorrectionY(0), fClusterErrorCorrectionZ(0), fNWays(1), fBenchmark("GlobalMerger")
 {
 // dummy
 }
@@ -86,15 +83,21 @@ void AliHLTTPCCAGlobalMergerComponent::GetInputDataTypes( AliHLTComponentDataTyp
   // see header file for class documentation
   list.clear();
   list.push_back( AliHLTTPCCADefinitions::fgkTrackletsDataType );
-  //list.push_back( AliHLTTPCDefinitions::fgkTrackSegmentsDataType );
-  //list.push_back( AliHLTTPCDefinitions::fgkVertexDataType );
 }
 
 AliHLTComponentDataType AliHLTTPCCAGlobalMergerComponent::GetOutputDataType()
 {
   // see header file for class documentation
-  //return AliHLTTPCDefinitions::fgkTracksDataType; // old
-  return kAliHLTDataTypeTrack|kAliHLTDataOriginTPC;
+  return kAliHLTMultipleDataType;
+}
+
+int AliHLTTPCCAGlobalMergerComponent::GetOutputDataTypes(AliHLTComponentDataTypeList& tgtList) { 
+  // see header file for class documentation
+
+  tgtList.clear();
+  tgtList.push_back( kAliHLTDataTypeTrack|kAliHLTDataOriginTPC );
+  tgtList.push_back( AliHLTTPCDefinitions::TracksOuterDataType() | kAliHLTDataOriginTPC );
+  return tgtList.size();
 }
 
 void AliHLTTPCCAGlobalMergerComponent::GetOutputDataSize( unsigned long &constBase, double &inputMultiplier )
@@ -117,10 +120,11 @@ void AliHLTTPCCAGlobalMergerComponent::SetDefaultConfiguration()
   // Set default configuration for the CA merger component
   // Some parameters can be later overwritten from the OCDB
 
-  fVersion = 1;
   fSolenoidBz = -5.00668;
   fClusterErrorCorrectionY = 0;
   fClusterErrorCorrectionZ = 1.1;
+  fNWays = 1;
+  fNWaysOuter = 0;
   fBenchmark.Reset();
   fBenchmark.SetTimer(0,"total");
   fBenchmark.SetTimer(1,"reco");    
@@ -145,13 +149,6 @@ int AliHLTTPCCAGlobalMergerComponent::ReadConfigurationString(  const char* argu
     argument = ( ( TObjString* )pTokens->At( i ) )->GetString();
     if ( argument.IsNull() ) continue;
 
-    if ( argument.CompareTo( "-version" ) == 0 ) {
-      if ( ( bMissingParam = ( ++i >= pTokens->GetEntries() ) ) ) break;
-      fVersion  = ( ( TObjString* )pTokens->At( i ) )->GetString().Atoi();
-      HLTInfo( "Merger version set to: %d", fVersion );
-      continue;
-    }
-
     if ( argument.CompareTo( "-solenoidBz" ) == 0 ) {
       if ( ( bMissingParam = ( ++i >= pTokens->GetEntries() ) ) ) break;
       HLTWarning("argument -solenoidBz is deprecated, magnetic field set up globally (%f)", GetBz());
@@ -169,6 +166,19 @@ int AliHLTTPCCAGlobalMergerComponent::ReadConfigurationString(  const char* argu
       if ( ( bMissingParam = ( ++i >= pTokens->GetEntries() ) ) ) break;
       fClusterErrorCorrectionZ = ( ( TObjString* )pTokens->At( i ) )->GetString().Atof();
       HLTInfo( "Cluster Z error correction factor set to: %f", fClusterErrorCorrectionZ );
+      continue;
+    }
+
+    if ( argument.CompareTo( "-nways" ) == 0 ) {
+      if ( ( bMissingParam = ( ++i >= pTokens->GetEntries() ) ) ) break;
+      fNWays = ( ( TObjString* )pTokens->At( i ) )->GetString().Atoi();
+      HLTInfo( "nways set to: %d", fNWays );
+      continue;
+    }
+
+    if ( argument.CompareTo( "-nwaysouter" ) == 0 ) {
+      fNWaysOuter = 1;
+      HLTInfo( "nwaysouter enabled" );
       continue;
     }
 
@@ -286,11 +296,12 @@ int AliHLTTPCCAGlobalMergerComponent::Configure( const char* cdbEntry, const cha
     param.Update();
 
     delete[] rowX;
+    param.SetNWays(fNWays);
+    param.SetNWaysOuter(fNWaysOuter);
+    param.LoadClusterErrors();
   }
 
-
-  if( fVersion==0 ) fGlobalMergerVersion0->SetSliceParam( param );
-  else fGlobalMerger->SetSliceParam( param );
+  fGlobalMerger->SetSliceParam( param, GetTimeStamp(), 1 );
 
   return iResult1 ? iResult1 : ( iResult2 ? iResult2 : iResult3 );
 }
@@ -302,11 +313,10 @@ int AliHLTTPCCAGlobalMergerComponent::DoInit( int argc, const char** argv )
 {
   // see header file for class documentation
 
-  if ( fGlobalMergerVersion0 || fGlobalMerger ) {
+  if ( fGlobalMerger ) {
     return EINPROGRESS;
   }
 
-  fGlobalMergerVersion0 = new AliHLTTPCCAMerger();
   fGlobalMerger         = new AliHLTTPCGMMerger();
 
   TString arguments = "";
@@ -315,7 +325,9 @@ int AliHLTTPCCAGlobalMergerComponent::DoInit( int argc, const char** argv )
     arguments += argv[i];
   }
 
-  return Configure( NULL, NULL, arguments.Data()  );
+  int retVal = Configure( NULL, NULL, arguments.Data()  );
+
+  return retVal;
 }
 
 int AliHLTTPCCAGlobalMergerComponent::Reconfigure( const char* cdbEntry, const char* chainId )
@@ -330,8 +342,6 @@ int AliHLTTPCCAGlobalMergerComponent::Reconfigure( const char* cdbEntry, const c
 int AliHLTTPCCAGlobalMergerComponent::DoDeinit()
 {
   // see header file for class documentation
-  delete fGlobalMergerVersion0;
-  fGlobalMergerVersion0 = 0;
   delete fGlobalMerger;
   fGlobalMerger = 0;
 
@@ -357,8 +367,7 @@ int AliHLTTPCCAGlobalMergerComponent::DoEvent( const AliHLTComponentEventData &e
   fBenchmark.StartNewEvent();
   fBenchmark.Start(0);
 
-  if( fVersion==0 )  fGlobalMergerVersion0->Clear();
-  else fGlobalMerger->Clear();
+  fGlobalMerger->Clear();
 
   const AliHLTComponentBlockData *const blocksEnd = blocks + evtData.fBlockCnt;
   for ( const AliHLTComponentBlockData *block = blocks; block < blocksEnd; ++block ) {
@@ -384,8 +393,7 @@ int AliHLTTPCCAGlobalMergerComponent::DoEvent( const AliHLTComponentEventData &e
     }
     AliHLTTPCCASliceOutput *sliceOut =  reinterpret_cast<AliHLTTPCCASliceOutput *>( block->fPtr );
     //sliceOut->SetPointers();
-    if( fVersion==0 ) fGlobalMergerVersion0->SetSliceData( slice, sliceOut );
-    else fGlobalMerger->SetSliceData( slice, sliceOut );
+    fGlobalMerger->SetSliceData( slice, sliceOut );
 
 	/*char filename[256];
 	sprintf(filename, "debug%d.out", slice);
@@ -395,92 +403,10 @@ int AliHLTTPCCAGlobalMergerComponent::DoEvent( const AliHLTComponentEventData &e
 	fclose(fp);*/
   }
   fBenchmark.Start(1);
-  if( fVersion==0 ) fGlobalMergerVersion0->Reconstruct();
-  else fGlobalMerger->Reconstruct();
+  fGlobalMerger->Reconstruct();
   fBenchmark.Stop(1);
 
   // Fill output 
-
-  if( fVersion==0 ){
-
-    const AliHLTTPCCAMergerOutput *mergerOutput = fGlobalMergerVersion0->Output();
-
-    unsigned int mySize = 0;
-    {
-      AliHLTTracksData* outPtr = ( AliHLTTracksData* )( outputPtr );
-      
-      AliHLTExternalTrackParam* currOutTrack = outPtr->fTracklets;
-      
-      mySize =   ( ( AliHLTUInt8_t * )currOutTrack ) -  ( ( AliHLTUInt8_t * )outputPtr );
-      
-      outPtr->fCount = 0;
-      
-      int nTracks = mergerOutput->NTracks();
-      
-      for ( int itr = 0; itr < nTracks; itr++ ) {
-	
-	// convert AliHLTTPCCAMergedTrack to AliHLTTrack
-	
-	const AliHLTTPCCAMergedTrack &track = mergerOutput->Track( itr );
-	
-	unsigned int dSize = sizeof( AliHLTExternalTrackParam ) + track.NClusters() * sizeof( unsigned int );
-	
-	if ( mySize + dSize > maxBufferSize ) {
-	  HLTWarning( "Output buffer size exceed (buffer size %d, current size %d), %d tracks are not stored", maxBufferSize, mySize, nTracks - itr + 1 );
-	  iResult = -ENOSPC;
-	  break;
-	}
-	
-	// first convert to AliExternalTrackParam
-	
-	AliExternalTrackParam tp, tpEnd;
-	AliHLTTPCCATrackConvertor::GetExtParam( track.InnerParam(), tp,  track.InnerAlpha() );
-	AliHLTTPCCATrackConvertor::GetExtParam( track.OuterParam(), tpEnd, track.OuterAlpha() );
-	
-	// normalize the angle to +-Pi
-	
-	currOutTrack->fAlpha = tp.GetAlpha() - CAMath::Nint(tp.GetAlpha()/CAMath::TwoPi())*CAMath::TwoPi();      
-	currOutTrack->fX = tp.GetX();
-	currOutTrack->fY = tp.GetY();
-	currOutTrack->fZ = tp.GetZ();      
-	{
-	  float sinA = TMath::Sin( track.OuterAlpha() - track.InnerAlpha());
-	  float cosA = TMath::Cos( track.OuterAlpha() - track.InnerAlpha());
-	  currOutTrack->fLastX = tpEnd.GetX()*cosA - tpEnd.GetY()*sinA;
-	  currOutTrack->fLastY = tpEnd.GetX()*sinA + tpEnd.GetY()*cosA;
-	  currOutTrack->fLastZ = tpEnd.GetZ();
-	}
-	currOutTrack->fq1Pt = tp.GetSigned1Pt();
-	currOutTrack->fSinPsi = tp.GetSnp();
-	currOutTrack->fTgl = tp.GetTgl();
-	for( int i=0; i<15; i++ ) currOutTrack->fC[i] = tp.GetCovariance()[i];
-	currOutTrack->fTrackID = itr;
-	currOutTrack->fFlags = 0;
-	currOutTrack->fNPoints = track.NClusters();    
-	for ( int i = 0; i < track.NClusters(); i++ ) currOutTrack->fPointIDs[i] = mergerOutput->ClusterId( track.FirstClusterRef() + i );
-	
-	currOutTrack = ( AliHLTExternalTrackParam* )( (( Byte_t * )currOutTrack) + dSize );
-	mySize += dSize;
-	outPtr->fCount++;
-      }    
-
-      AliHLTComponentBlockData resultData;
-      FillBlockData( resultData );
-      resultData.fOffset = 0;
-      resultData.fSize = mySize;
-      resultData.fDataType = kAliHLTDataTypeTrack|kAliHLTDataOriginTPC;
-      resultData.fSpecification = AliHLTTPCDefinitions::EncodeDataSpecification( 0, 35, 0, 5 );
-      outputBlocks.push_back( resultData );
-      fBenchmark.AddOutput(resultData.fSize);
-      
-      size = resultData.fSize;
-    }
-    
-    HLTInfo( "CAGlobalMerger:: output %d tracks", mergerOutput->NTracks() );
-    fGlobalMergerVersion0->Clear();
-
-  } else { // new merger 
-
     unsigned int mySize = 0;
     {
       AliHLTTracksData* outPtr = ( AliHLTTracksData* )( outputPtr );
@@ -519,13 +445,18 @@ int AliHLTTPCCAGlobalMergerComponent::DoEvent( const AliHLTComponentEventData &e
 	currOutTrack->fLastZ = track.LastZ();
       
 	currOutTrack->fq1Pt = tp.GetSigned1Pt();
-	currOutTrack->fSinPsi = tp.GetSnp();
+	currOutTrack->fSinPhi = tp.GetSnp();
 	currOutTrack->fTgl = tp.GetTgl();
 	for( int i=0; i<15; i++ ) currOutTrack->fC[i] = tp.GetCovariance()[i];
 	currOutTrack->fTrackID = itr;
 	currOutTrack->fFlags = 0;
-	currOutTrack->fNPoints = track.NClusters();    
-	for ( int i = 0; i < track.NClusters(); i++ ) currOutTrack->fPointIDs[i] = fGlobalMerger->OutputClusterIds()[track.FirstClusterRef() + i ];
+	currOutTrack->fNPoints = 0;    
+	for ( int i = 0; i < track.NClusters(); i++ )
+	{
+	  if (fGlobalMerger->Clusters()[track.FirstClusterRef() + i].fState & AliHLTTPCGMMergedTrackHit::flagReject) continue;
+	  currOutTrack->fPointIDs[currOutTrack->fNPoints++] = fGlobalMerger->Clusters()[track.FirstClusterRef() + i].fId;
+	}
+	dSize = sizeof( AliHLTExternalTrackParam ) + currOutTrack->fNPoints * sizeof( unsigned int );
 	
 	currOutTrack = ( AliHLTExternalTrackParam* )( (( Byte_t * )currOutTrack) + dSize );
 	mySize += dSize;
@@ -543,14 +474,72 @@ int AliHLTTPCCAGlobalMergerComponent::DoEvent( const AliHLTComponentEventData &e
       
       size = resultData.fSize;
     }
+    
+    if (fNWays > 1 && fNWaysOuter)
+    {
+      unsigned int newSize = 0;
+      AliHLTTracksData* outPtr = ( AliHLTTracksData* )( outputPtr + size );
+      AliHLTExternalTrackParam* currOutTrack = outPtr->fTracklets;
+      newSize =   ( ( AliHLTUInt8_t * )currOutTrack ) -  ( outputPtr + size );
+      outPtr->fCount = 0;   
+      int nTracks = fGlobalMerger->NOutputTracks();
+
+      for ( int itr = 0; itr < nTracks; itr++ ) {
+        const AliHLTTPCGMMergedTrack &track = fGlobalMerger->OutputTracks()[ itr ];
+        if( !track.OK() ) continue;
+        unsigned int dSize = sizeof( AliHLTExternalTrackParam );
+        
+        if ( mySize + newSize + dSize > maxBufferSize ) {
+          HLTWarning( "Output buffer size exceed (buffer size %d, current size %d), %d tracks are not stored", maxBufferSize, mySize + newSize + dSize, nTracks - itr + 1 );
+          iResult = -ENOSPC;
+          break;
+        }
+
+        // first convert to AliExternalTrackParam
+
+        AliExternalTrackParam tp;
+        track.GetParam().GetExtParam( tp,  track.GetAlpha() );
+            
+        // normalize the angle to +-Pi
+              
+        currOutTrack->fAlpha = track.GetParam().OuterParam().fAlpha - CAMath::Nint(tp.GetAlpha()/CAMath::TwoPi())*CAMath::TwoPi();      
+        currOutTrack->fX = track.GetParam().OuterParam().fX;
+        currOutTrack->fY = track.GetParam().OuterParam().fP[0];
+        currOutTrack->fZ = track.GetParam().OuterParam().fP[1];
+        currOutTrack->fLastX = track.LastX();
+        currOutTrack->fLastY = track.LastY();
+        currOutTrack->fLastZ = track.LastZ();
+            
+        currOutTrack->fq1Pt = track.GetParam().OuterParam().fP[4];
+        currOutTrack->fSinPhi = track.GetParam().OuterParam().fP[2];
+        currOutTrack->fTgl = track.GetParam().OuterParam().fP[3];
+        for( int i=0; i<15; i++ ) currOutTrack->fC[i] = track.GetParam().OuterParam().fC[i];
+        currOutTrack->fTrackID = itr;
+        currOutTrack->fFlags = 0;
+        currOutTrack->fNPoints = 0;
+        
+        currOutTrack = ( AliHLTExternalTrackParam* )( (( Byte_t * )currOutTrack) + dSize );
+        newSize += dSize;
+        outPtr->fCount++;
+      }
+  
+      AliHLTComponentBlockData resultData;
+      FillBlockData( resultData );
+      resultData.fOffset = mySize;
+      resultData.fSize = newSize;
+      resultData.fDataType = AliHLTTPCDefinitions::TracksOuterDataType() | kAliHLTDataOriginTPC;
+      resultData.fSpecification = AliHLTTPCDefinitions::EncodeDataSpecification( 0, 35, 0, 5 );
+      outputBlocks.push_back( resultData );
+      fBenchmark.AddOutput(resultData.fSize);
+      
+      size = resultData.fSize;
+    }
 
     HLTInfo( "CAGlobalMerger:: output %d tracks", fGlobalMerger->NOutputTracks() );
 
     fGlobalMerger->Clear();
-  }
 
   fBenchmark.Stop(0);
   HLTInfo( fBenchmark.GetStatistics() );
   return iResult;
 }
-

@@ -57,7 +57,7 @@ AliEMCALGeometry::AliEMCALGeometry():
   fDCALInnerExtandedEta(0),fShishKebabTrd1Modules(0),fPhiModuleSize(0.),
   fEtaModuleSize(0.),fPhiTileSize(0.),fEtaTileSize(0.),fNZ(0),
   fIPDistance(0.),fLongModuleSize(0.),fShellThickness(0.),
-  fZLength(0.),fSampling(0.),fUseExternalMatrices(kFALSE)
+  fZLength(0.),fSampling(0.)
 {
   fEnvelop[0] = 0.;
   fEnvelop[1] = 0.;
@@ -86,7 +86,7 @@ AliEMCALGeometry::AliEMCALGeometry(const AliEMCALGeometry & geo)
     fDCALInnerExtandedEta(geo.fDCALInnerExtandedEta),fShishKebabTrd1Modules(geo.fShishKebabTrd1Modules),fPhiModuleSize(geo.fPhiModuleSize),
     fEtaModuleSize(geo.fEtaModuleSize),fPhiTileSize(geo.fPhiTileSize),fEtaTileSize(geo.fEtaTileSize),fNZ(geo.fNZ),
     fIPDistance(geo.fIPDistance),fLongModuleSize(geo.fLongModuleSize),fShellThickness(geo.fShellThickness),
-    fZLength(geo.fZLength),fSampling(geo.fSampling),fUseExternalMatrices(geo.fUseExternalMatrices)
+    fZLength(geo.fZLength),fSampling(geo.fSampling)
 {
   fEnvelop[0] = geo.fEnvelop[0];
   fEnvelop[1] = geo.fEnvelop[1];
@@ -123,7 +123,7 @@ AliEMCALGeometry::AliEMCALGeometry(const Text_t* name,   const Text_t* title,
     fDCALInnerExtandedEta(0),fShishKebabTrd1Modules(0),fPhiModuleSize(0.),
     fEtaModuleSize(0.),fPhiTileSize(0.),fEtaTileSize(0.),fNZ(0),
     fIPDistance(0.),fLongModuleSize(0.),fShellThickness(0.),
-    fZLength(0.),fSampling(0.), fUseExternalMatrices(kFALSE)
+    fZLength(0.),fSampling(0.)
 {   
   fEMCGeometry = new AliEMCALEMCGeometry(name,title,mcname,mctitle);
   fGeoName = fEMCGeometry->GetGeoName();
@@ -203,10 +203,9 @@ AliEMCALGeometry::AliEMCALGeometry(const Text_t* name,   const Text_t* title,
     fTriggerMapping = new AliEMCALTriggerMappingV2(52, this);
     AliLog::Message(AliLog::kInfo, "EMCAL Trigger Mapping Version V2 Enabled",
                     MODULENAME(), "AliEMCALGeometry", FUNCTIONNAME(), __FILE__, __LINE__);
-  } 
-  else 
-  { 
-    fTriggerMapping = new AliEMCALTriggerMappingV1(32, this);
+  } else { 
+    if ((fEMCGeometry->GetGeoName()).Contains("12SM")) fTriggerMapping = new AliEMCALTriggerMappingV1(32, this);
+    else fTriggerMapping = new AliEMCALTriggerMappingV1(30, this);
     AliLog::Message(AliLog::kInfo, "EMCAL Trigger Mapping Version V1 Enabled",
                     MODULENAME(), "AliEMCALGeometry", FUNCTIONNAME(), __FILE__, __LINE__);
   }
@@ -253,6 +252,8 @@ AliEMCALGeometry::~AliEMCALGeometry(void)
 ///
 /// \return the pointer of the unique instance of the geometry
 ///
+/// It should have been set before.
+///
 //______________________________________________________________________
 AliEMCALGeometry *  AliEMCALGeometry::GetInstance()
 {   
@@ -265,7 +266,7 @@ AliEMCALGeometry *  AliEMCALGeometry::GetInstance()
 ///
 /// \param name: geometry name, EMCAL_COMPLETEV1, EMCAL_COMPLETE12SMV1, EMCAL_COMPLETE12SMV1_DCAL, EMCAL_COMPLETE12SMV1_DCAL_8SM, EMCAL_COMPLETE12SMV1_DCAL_DEV (see main class description for definition)
 /// \param title
-/// \param mcname: Geant3/4, Flukla, needed for settings of transport (check)
+/// \param mcname: Geant3/4, Fluka, needed for settings of transport (check)
 /// \param mctitle: Geant4 physics list (check)
 ///
 //______________________________________________________________________
@@ -273,7 +274,7 @@ AliEMCALGeometry* AliEMCALGeometry::GetInstance(const Text_t* name,   const Text
                                                 const Text_t* mcname, const Text_t* mctitle )
 {
   AliEMCALGeometry * rv = 0; 
-  
+
   if ( fgGeom == 0 ) 
   {
     if ( strcmp(name,"") == 0 ) 
@@ -302,6 +303,7 @@ AliEMCALGeometry* AliEMCALGeometry::GetInstance(const Text_t* name,   const Text
     {
       printf("\n current geometry is %s : ", fgGeom->GetName());
       printf(" you should not call %s \n",name);
+		
     } // end 
     
     rv = (AliEMCALGeometry *) fgGeom; 
@@ -317,7 +319,7 @@ AliEMCALGeometry* AliEMCALGeometry::GetInstance(const Text_t* name,   const Text
 ///
 /// \param runNumber: as indicated
 /// \param geoName: geometry name, EMCAL_COMPLETEV1, etc. Not really needed to be specified.
-/// \param mcname: Geant3/4, Flukla, needed for settings of transport (check). Not really needed to be specified.
+/// \param mcname: Geant3/4, Fluka, needed for settings of transport (check). Not really needed to be specified.
 /// \param mctitle:  Geant4 physics list (check). Not really needed to be specified.
 ///
 //___________________________________________________________________________
@@ -661,9 +663,9 @@ void  AliEMCALGeometry::GetModuleIndexesFromCellIndexesInSModule(Int_t nSupMod, 
 Int_t  AliEMCALGeometry::GetAbsCellIdFromCellIndexes(Int_t nSupMod, Int_t iphi, Int_t ieta) const
 {  
   // Check if the indeces correspond to existing SM or tower indeces
-  if(iphi    < 0 || iphi    >= AliEMCALGeoParams::fgkEMCALRows || 
-     ieta    < 0 || ieta    >= AliEMCALGeoParams::fgkEMCALCols ||
-     nSupMod < 0 || nSupMod >= GetNumberOfSuperModules()         )
+  if ( nSupMod < 0 || nSupMod >= GetNumberOfSuperModules()               ||
+       iphi    < 0 || iphi    >= GetNumberOfCellsInPhiDirection(nSupMod) || 
+       ieta    < 0 || ieta    >= GetNumberOfCellsInEtaDirection(nSupMod))
   {
     AliDebug(1,Form("Wrong cell indexes : SM %d, column (eta) %d, row (phi) %d", nSupMod,ieta,iphi));
     return -1 ;
@@ -927,10 +929,8 @@ Int_t  AliEMCALGeometry::GetSuperModuleNumber(Int_t absId)  const
 void AliEMCALGeometry::GetModulePhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule,  int &iphim, int &ietam) const
 { 
   static Int_t nphi=-1;
-  if(      GetSMType(nSupMod) == kEMCAL_Half )  nphi = fNPhi/2; // halfSM
-  else if( GetSMType(nSupMod) == kEMCAL_3rd  )  nphi = fNPhi/3; // 1/3 SM
-  else if( GetSMType(nSupMod) == kDCAL_Ext   )  nphi = fNPhi/3; // 1/3 SM
-  else                                          nphi = fNPhi;   // full SM
+   
+  nphi = GetNumberOfModuleInPhiDirection(nSupMod);
   
   ietam = nModule/nphi;
   iphim = nModule%nphi;
@@ -958,6 +958,13 @@ void AliEMCALGeometry::GetCellPhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule,
   ieta  = ietam*fNETAdiv + (fNETAdiv - 1 - nIeta); // x(module) = -z(SM) 
   iphi  = iphim*fNPHIdiv + nIphi;     // y(module) =  y(SM) 
 
+  if ( iphi > GetNumberOfCellsInPhiDirection(nSupMod) ||
+       ieta > GetNumberOfCellsInEtaDirection(nSupMod)   )
+  {
+    iphi = -1;
+    ieta = -1;
+  }
+  
   if(iphi<0 || ieta<0)
     AliDebug(1,Form(" nSupMod %i nModule %i nIphi %i nIeta %i => ieta %i iphi %i\n", 
                     nSupMod, nModule, nIphi, nIeta, ieta, iphi));
@@ -1497,31 +1504,23 @@ Int_t AliEMCALGeometry::IsInEMCALOrDCAL(Double_t x, Double_t y, Double_t z) cons
 //____________________________________________________________________________
 const TGeoHMatrix * AliEMCALGeometry::GetMatrixForSuperModule(Int_t smod) const 
 {	
-  if(smod < 0 || smod > fEMCGeometry->GetNumberOfSuperModules()) 
+  if ( smod < 0 || smod > fEMCGeometry->GetNumberOfSuperModules() ) 
     AliFatal(Form("Wrong supermodule index -> %d",smod));
-		
-  // Use matrices set externally
-  if(!gGeoManager || (gGeoManager && fUseExternalMatrices))
+
+  if ( !fkSModuleMatrix[smod] ) 
   {
-    if(fkSModuleMatrix[smod])
-    {
-      return fkSModuleMatrix[smod] ;
-    }
-    else
-    {
-      AliInfo("Stop:");
-      printf("\t Can not find EMCAL misalignment matrixes\n") ;
-      printf("\t Either import TGeoManager from geometry.root or \n");
-      printf("\t read stored matrixes from AliESD Header:  \n") ;   
-      printf("\t AliEMCALGeometry::SetMisalMatrixes(header->GetEMCALMisalMatrix()) \n") ;
-      AliFatal("") ;
-    }  
-  }//external matrices
+    if ( gGeoManager )
+      SetMisalMatrix( GetMatrixForSuperModuleFromGeoManager(smod), smod );
+    else 
+      AliFatal("Cannot find EMCAL misalignment matrices! Recover them either: \n"
+               "\t - importing TGeoManager from file geometry.root or \n"
+               "\t - from OADB in file OADB/EMCAL/EMCALlocal2master.root or \n"
+               "\t - from OCDB in directory OCDB/EMCAL/Align/Data/ or \n"
+               "\t - from AliESDs (not in AliAOD) via AliESDRun::GetEMCALMatrix(Int_t superModIndex). \n"   
+               "Store them via AliEMCALGeometry::SetMisalMatrix(Int_t superModIndex)") ;
+  }
   
-  // If gGeoManager exists, take matrix from it
-  if(gGeoManager) return GetMatrixForSuperModuleFromGeoManager(smod);
-  
-  return 0 ;
+  return fkSModuleMatrix[smod];
 }
 
 ///
@@ -1730,13 +1729,17 @@ void AliEMCALGeometry::RecalculateTowerPosition(Float_t drow, Float_t dcol, cons
 /// Move from header due to coding violations : Dec 2,2011 by PAI
 ///
 //__________________________________________________________________________________________________________________
-void AliEMCALGeometry::SetMisalMatrix(const TGeoHMatrix * m, Int_t smod) 
+void AliEMCALGeometry::SetMisalMatrix(const TGeoHMatrix * m, Int_t smod) const
 {
-  fUseExternalMatrices = kTRUE;
-
-  if (smod >= 0 && smod < fEMCGeometry->GetNumberOfSuperModules()){
-    if(!fkSModuleMatrix[smod]) fkSModuleMatrix[smod] = new TGeoHMatrix(*m) ; //Set only if not set yet
-  } else AliFatal(Form("Wrong supermodule index -> %d",smod));
+  if (smod >= 0 && smod < fEMCGeometry->GetNumberOfSuperModules())
+  {
+   if ( !fkSModuleMatrix[smod] )
+      fkSModuleMatrix[smod] = new TGeoHMatrix(*m) ; //Set only if not set yet
+  }
+  else
+  {
+    AliFatal(Form("Wrong supermodule index -> %d",smod));
+  }
 }
 
 ///

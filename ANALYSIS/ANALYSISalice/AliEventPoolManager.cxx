@@ -131,6 +131,14 @@ Int_t AliEventPool::UpdatePool(TObjArray *trk)
     if (diff>fTargetTrackDepth)
       removeFirstEvent = 1;
   }
+
+  Bool_t gLimitNbOfEvents = 0;
+  if (fMixDepth > 0) gLimitNbOfEvents = kTRUE;
+  if (gLimitNbOfEvents) {
+    if (fEvents.size()>fMixDepth)
+      removeFirstEvent = 1;
+  }
+
   if (removeFirstEvent) {
     TObjArray *fa = fEvents.front();
     delete fa;
@@ -138,6 +146,7 @@ Int_t AliEventPool::UpdatePool(TObjArray *trk)
     fNTracksInEvent.pop_front(); // remove first int
     fEventIndex.pop_front();
   }
+
 
   fNTracksInEvent.push_back(mult);
   fEvents.push_back(trk);
@@ -187,7 +196,7 @@ Long64_t AliEventPool::Merge(TCollection* hlist)
   return hlist->GetEntries() + 1;
 }
 
-void AliEventPool::Clear()
+void AliEventPool::Clear(Option_t * option)
 {
   // Clear the pool without deleting the object
   // Don't touch lock or save flag here to be fully flexible

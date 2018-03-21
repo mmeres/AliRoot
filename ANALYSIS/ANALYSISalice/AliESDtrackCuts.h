@@ -51,8 +51,7 @@ public:
   AliESDtrackCuts(const Char_t* name = "AliESDtrackCuts", const Char_t* title = "");
   virtual ~AliESDtrackCuts();
 
-  virtual Bool_t IsSelected(TObject* obj)
-       {return AcceptTrack((AliESDtrack*)obj);}
+  virtual Bool_t IsSelected(TObject* obj);
   virtual Bool_t IsSelected(TList* /*list*/) {return kTRUE;}
 
   Bool_t AcceptTrack(const AliESDtrack* esdTrack);
@@ -155,6 +154,7 @@ public:
   Bool_t  GetRequireTPCStandAlone()  const   { return fCutRequireTPCStandAlone;}
   Bool_t  GetRequireITSRefit()       const   { return fCutRequireITSRefit;}
   Bool_t  GetRequireITSStandAlone()  const   { return fCutRequireITSStandAlone; }
+  Bool_t  GetRequireITSpureSA()      const   { return fCutRequireITSpureSA; }
   Bool_t  GetAcceptKinkDaughters()   const   { return fCutAcceptKinkDaughters;}
   Bool_t  GetAcceptSharedTPCClusters()        const   {return fCutAcceptSharedTPCClusters;}
   Float_t GetMaxFractionSharedTPCClusters()   const   {return fCutMaxFractionSharedTPCClusters;}

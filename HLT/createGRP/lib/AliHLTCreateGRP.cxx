@@ -98,7 +98,7 @@ int AliHLTCreateGRP::CreateGRP(Int_t runNumber, TString detectorList, TString be
 	if (cavernAtmosPressure2 == -123456.f) {printf("Error obtaining Cavern Pressure 2 from DIM\n"); return(1);}
 	if (beamEnergy == -123456.f) {printf("Error obtaining Beam Energy from DIM\n"); return(1);}
 	
-	AliMagF* field = AliMagF::CreateFieldMap(l3Current, dipoleCurrent, 0, kFALSE, beamEnergy, beamType, "$(ALICE_ROOT)/data/maps/mfchebKGI_sym.root", true);
+	AliMagF* field = AliMagF::CreateFieldMap(l3Current, dipoleCurrent, 0, kFALSE, beamEnergy, beamType, 0, 0, "$(ALICE_ROOT)/data/maps/mfchebKGI_sym.root", true);
 	if (field == NULL)
 	{
 		cout << "Cannot create fild map with current magnet currents: L3 " << l3Current << ", Diploe " << dipoleCurrent;
@@ -123,7 +123,10 @@ int AliHLTCreateGRP::CreateGRP(Int_t runNumber, TString detectorList, TString be
 	int curtime = time(NULL);
 	grpObject.SetTimeStart(curtime);   // ?? not the time issued by ECS
 	grpObject.SetTimeEnd(curtime + 24 * 3600);
-	grpObject.SetBeamType(beamType);
+	
+	if (beamType == "pp") grpObject.SetBeamType("p-p");
+	else grpObject.SetBeamType(beamType);
+	
 	grpObject.SetRunType(runType);
 	grpObject.SetLHCPeriod(getenv("LHC_PERIOD")); // ? This variable is wrong that way!
 
@@ -134,6 +137,7 @@ int AliHLTCreateGRP::CreateGRP(Int_t runNumber, TString detectorList, TString be
 	grpObject.SetDetectorMask(detectMask);
 
 	grpObject.SetBeamEnergy(beamEnergy);
+	grpObject.SetBeamEnergyIsSqrtSHalfGeV(kTRUE);
 
 	grpObject.SetL3Current(l3Current, (AliGRPObject::Stats) 0);
 	grpObject.SetDipoleCurrent(dipoleCurrent, (AliGRPObject::Stats) 0);  

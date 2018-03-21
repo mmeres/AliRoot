@@ -92,7 +92,8 @@ public:
     kMuonUnlikeLowPt0  = BIT(26), // Unlike-sign dimuon low-pt, no additional L0 requirement
     kUserDefined       = BIT(27), // Set when custom trigger classes are set in AliPhysicsSelection
     kTRD               = BIT(28), // TRD trigger
-    // Bits 29 and above are reserved for FLAGS
+    kMuonCalo          = BIT(29), // Muon-calo triggers
+    // Bits 30 and above are reserved for FLAGS
     kFastOnly          = BIT(30), // The fast cluster fired. This bit is set in to addition another trigger bit, e.g. kMB
     kAny               = 0xffffffff, // to accept any defined trigger
     kAnyINT            = kMB | kINT7 | kINT5 | kINT8 | kSPI7 // to accept any interaction (aka minimum bias) trigger
@@ -261,7 +262,7 @@ public:
   const char* Whoami();
   virtual ULong64_t  GetSize()  const {return 0;}
 
-  virtual void AdjustMCLabels(const AliVEvent *mctruth) {return;}
+  virtual void AdjustMCLabels(const AliVEvent */*mctruth*/) {return;}
   
   ClassDef(AliVEvent, 3)  // base class for AliEvent data
 };

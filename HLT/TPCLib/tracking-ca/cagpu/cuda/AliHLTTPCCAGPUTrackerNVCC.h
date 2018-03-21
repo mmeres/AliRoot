@@ -18,6 +18,10 @@
 #ifndef ALIHLTTPCCAGPUTRACKERNVCC_H
 #define ALIHLTTPCCAGPUTRACKERNVCC_H
 
+#ifdef __CLING__
+typedef int cudaError_t;
+#endif
+
 #include "AliHLTTPCCAGPUTrackerBase.h"
 
 class AliHLTTPCCAGPUTrackerNVCC : public AliHLTTPCCAGPUTrackerBase
@@ -28,9 +32,8 @@ public:
 
 	virtual int InitGPU_Runtime(int sliceCount = -1, int forceDeviceID = -1);
 	virtual int Reconstruct(AliHLTTPCCASliceOutput** pOutput, AliHLTTPCCAClusterData* pClusterData, int fFirstSlice, int fSliceCount = -1);
-	virtual int ReconstructPP(AliHLTTPCCASliceOutput** pOutput, AliHLTTPCCAClusterData* pClusterData, int fFirstSlice, int fSliceCount = -1);
 	virtual int ExitGPU_Runtime();
-	virtual int RefitMergedTracks(AliHLTTPCGMMerger* Merger);
+	virtual int RefitMergedTracks(AliHLTTPCGMMerger* Merger, bool resetTimers);
 	virtual int GPUMergerAvailable();
 
 protected:
@@ -40,7 +43,6 @@ protected:
 	virtual int GPUSync(const char* state = "UNKNOWN", int stream = -1, int slice = 0);
 
 private:
-	void DumpRowBlocks(AliHLTTPCCATracker* tracker, int iSlice, bool check = true);
 	void* fCudaContext; //Pointer to CUDA context
 	bool GPUFailedMsgA(cudaError_t error, const char* file, int line);
 

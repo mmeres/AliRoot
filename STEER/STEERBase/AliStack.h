@@ -1,3 +1,4 @@
+
 #ifndef ALI_STACK_H
 #define ALI_STACK_H
 /* Copyright(c) 1998-1999, ALICE Experiment at CERN, All rights reserved. *
@@ -54,7 +55,7 @@ class AliStack : public TVirtualMCStack
 
     void   ConnectTree(TTree* tree);
     Bool_t GetEvent();
-    Bool_t PurifyKine();
+    Bool_t PurifyKine(Float_t rmax = -1., Float_t zmax = -1.);
     Bool_t ReorderKine();
     void   FinishEvent();
     void   FlagTrack(Int_t track);
@@ -75,25 +76,29 @@ class AliStack : public TVirtualMCStack
     Int_t       GetNtransported() const;
     virtual Int_t GetCurrentTrackNumber() const;
     virtual Int_t GetCurrentParentTrackNumber() const;
-    TParticle*  Particle(Int_t id);
-    Int_t       GetPrimary(Int_t id);
+    TParticle*  Particle(Int_t id, Bool_t useInEmbedding=kFALSE);
+    Int_t       GetPrimary(Int_t id, Bool_t useInEmbedding=kFALSE);
     TTree*      TreeK() const {return fTreeK;}
-    TParticle*  ParticleFromTreeK(Int_t id) const;
-    Int_t       TreeKEntry(Int_t id) const;
-    Bool_t      IsPhysicalPrimary(Int_t i);
-    Bool_t      IsSecondaryFromWeakDecay(Int_t index);
-    Bool_t      IsSecondaryFromMaterial (Int_t index);
+    TParticle*  ParticleFromTreeK(Int_t id, Bool_t useInEmbedding=kFALSE) const;
+    Int_t       TreeKEntry(Int_t id, Bool_t useInEmbedding=kFALSE) const;
+    Bool_t      IsPhysicalPrimary(Int_t i, Bool_t useInEmbedding=kFALSE);
+    Bool_t      IsSecondaryFromWeakDecay(Int_t index, Bool_t useInEmbedding=kFALSE);
+    Bool_t      IsSecondaryFromMaterial (Int_t index, Bool_t useInEmbedding=kFALSE);
     Int_t       TrackLabel(Int_t label) const {return fTrackLabelMap[label];}
     Int_t*      TrackLabelMap() {return fTrackLabelMap.GetArray();}
     const TObjArray*  Particles() const;
-    
+
+    void        SetMCEmbeddingFlag(Bool_t v=kTRUE)        {fMCEmbeddingFlag = v;}
+    Bool_t      GetMCEmbeddingFlag()                const {return fMCEmbeddingFlag;}
+    static const char*   GetEmbeddingBKGPathsKey() {return fgkEmbedPathsKey;}
+
   protected:
     // methods
     void  CleanParents();
     void  ResetArrays(Int_t size);
     TParticle* GetParticleMapEntry(Int_t id) const;
     TParticle* GetNextParticle();
-    Bool_t KeepPhysics(const TParticle* part);
+    Bool_t KeepPhysics(const TParticle* part, Float_t rmax = -1, Float_t zmax = -1.);
     Bool_t IsStable(Int_t pdg) const;
   private:
     void Copy(TObject &st) const;
@@ -113,6 +118,11 @@ class AliStack : public TVirtualMCStack
     Int_t          fHgwmk;             //! Last track purified
     Int_t          fLoadPoint;         //! Next free position in the particle buffer
     TArrayI        fTrackLabelMap;     //! Map of track labels
+    Bool_t         fMCEmbeddingFlag;   //! Flag that this is a top stack of embedded MC
+
+    static TParticle* fgDummyParticle;     // dummy particle returned in Stack::Particle call in embedding mode
+    static const Char_t *fgkEmbedPathsKey;       // keyword for embedding paths
+
     ClassDef(AliStack,6) //Particles stack
 };
 

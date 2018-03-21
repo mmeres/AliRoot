@@ -28,13 +28,11 @@ endif()
 set(MODULE HLTbase)
 
 # Module include folder
-include_directories(${ROOT_INCLUDE_DIR}
-                              ${AliRoot_SOURCE_DIR}/HLT/BASE
-                   )
+include_directories(${AliRoot_SOURCE_DIR}/HLT/BASE)
 
 # Additional include folders in alphabetical order except ROOT
-include_directories(
-                    ${AliRoot_SOURCE_DIR}/HLT/BASE/HOMER
+include_directories(SYSTEM ${ROOT_INCLUDE_DIR})
+include_directories(${AliRoot_SOURCE_DIR}/HLT/BASE/HOMER
                     ${AliRoot_SOURCE_DIR}/RAW/RAWDatabase
                     ${AliRoot_SOURCE_DIR}/STEER/STEERBase
                    )
@@ -131,6 +129,8 @@ set(SRCS
     AliHLTTriggerMenuItem.cxx
     AliHLTTriggerMenuSymbol.cxx
     AliHLTTTreeProcessor.cxx
+    AliHLTObjArray.cxx
+    AliHLTList.cxx
    )
 
 # Headers from sources
@@ -148,7 +148,14 @@ set(HDRS ${HDRS}
 get_directory_property(incdirs INCLUDE_DIRECTORIES)
 generate_dictionary("${MODULE}" "${MODULE}LinkDef.h" "${HDRS}" "${incdirs}")
 
-set(ROOT_DEPENDENCIES Core Geom Graf Hist MathCore Net RIO Tree XMLParser)
+set(ROOT_DEPENDENCIES Core Thread Geom Graf Hist MathCore Net RIO Tree XMLParser)
+
+if(${ROOT_VERSION_MAJOR} LESS 6)
+    list(APPEND ROOT_DEPENDENCIES Cint)
+else()
+    list(APPEND ROOT_DEPENDENCIES Cling)
+endif()
+
 set(ALIROOT_DEPENDENCIES STEERBase RAWDatabase AliHLTHOMER)
 # Generate the ROOT map
 # Dependecies

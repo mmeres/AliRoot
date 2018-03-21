@@ -45,7 +45,7 @@ class AliAODTrack : public AliVTrack {
     kIsTPCConstrained=BIT(17), // set if this track is a SA TPC track constrained to the SPD vertex, needs to be skipped in any track loop to avoid double counting
     kIsHybridTPCCG=BIT(18), // set if this track can be used as a hybrid track i.e. Gbobal tracks with certain slecetion plus the TPC constrained tracks that did not pass the selection
     kIsGlobalConstrained=BIT(19), // set if this track is a global track constrained to the vertex, needs to be skipped in any track loop to avoid double counting
-    kIsHybridGCG=BIT(20)// set if this track can be used as a hybrid track i.e. tracks with certain slecetion plus the global constraint tracks that did not pass the selection
+    kIsHybridGCG=BIT(20)// set if this track can be used as a hybrid track i.e. tracks with certain selection plus the global constraint tracks that did not pass the selection
   };
 
 
@@ -144,6 +144,11 @@ class AliAODTrack : public AliVTrack {
   }
   
   UShort_t GetTPCNcls()  const { return GetTPCncls(); }
+  Double_t GetTPCchi2() const {
+    Int_t nTPCclus=GetNcls(1);
+    if(fChi2perNDF>0. && nTPCclus > 5) return fChi2perNDF*(nTPCclus-5);
+    else return 999.;
+  }
 
   Int_t GetNcls(Int_t idet) const;
 
@@ -256,6 +261,9 @@ class AliAODTrack : public AliVTrack {
   Double_t PAtDCA() const { return TMath::Sqrt(PxAtDCA()*PxAtDCA() + PyAtDCA()*PyAtDCA() + PzAtDCA()*PzAtDCA()); }
   Bool_t   PxPyPzAtDCA(Double_t p[3]) const { p[0] = PxAtDCA(); p[1] = PyAtDCA(); p[2] = PzAtDCA(); return kTRUE; }
   
+  virtual void GetImpactParameters(Float_t &xy,Float_t &z) const;
+  void GetImpactParameters(Float_t p[2], Float_t cov[3]) const;
+
   Double_t GetRAtAbsorberEnd() const { return fRAtAbsorberEnd; }
   
   Double_t GetITSchi2()       const       {return fITSchi2;}
@@ -322,7 +330,7 @@ class AliAODTrack : public AliVTrack {
   Double_t  GetTPCsignalTunedOnData() const { return fTPCsignalTuned;}
   void      SetTPCsignalTunedOnData(Double_t signal) {fTPCsignalTuned = signal;}
   UShort_t  GetTPCsignalN()      const { return fDetPid?fDetPid->GetTPCsignalN():0;    }
-  virtual AliTPCdEdxInfo* GetTPCdEdxInfo() const {return fDetPid?fDetPid->GetTPCdEdxInfo():0;}
+  virtual Bool_t GetTPCdEdxInfo( AliTPCdEdxInfo &v) const {return fDetPid?fDetPid->GetTPCdEdxInfo(v):0;}
   Double_t  GetTPCmomentum()     const { return fDetPid?fDetPid->GetTPCmomentum():0.;  }
   Double_t  GetTPCTgl()          const { return fDetPid?fDetPid->GetTPCTgl():0.;  }
   Double_t  GetTOFsignal()       const { return fDetPid?fDetPid->GetTOFsignal():0.;    }
@@ -446,6 +454,9 @@ class AliAODTrack : public AliVTrack {
   Int_t    PdgCode() const {return 0;}
   
  private :
+
+  // Silence -Woverloaded-virtual while disallowing use of AliVTrack::GetTPCdEdxInfo in derived classes
+  using AliVTrack::GetTPCdEdxInfo;
 
   // Momentum & position
   Double32_t    fMomentum[3];       // momemtum stored in pt, phi, theta

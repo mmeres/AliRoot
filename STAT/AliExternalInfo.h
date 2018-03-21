@@ -78,6 +78,7 @@ public:
   Bool_t CacheProdCycle()                                               {return Cache("MonALISA.ProductionCycle", "", "");}
   Bool_t CacheCPass()                                                   {return Cache("MonALISA.ProductionCPass", "", "");}
   Bool_t CacheProdCycleByID(TString ID)                                 {return Cache("MonALISA.ProductionCycleID", ID, "");}
+  static void CacheProduction(TPRegexp select, TPRegexp reject, TString sourceList);
 
   TTree* GetTree(TString type, TString period, TString pass, Int_t buildIndex=1);
   TTree* GetTree(TString type, TString period, TString pass, TString friendList);
@@ -90,9 +91,16 @@ public:
   TTree* GetTreeProdCycle()                                             {return GetTree("MonALISA.ProductionCycle", "", "");}
   TTree* GetTreeCPass()                                                 {return GetTree("MonALISA.ProductionCPass", "", "");}
   TTree* GetTreeProdCycleByID(TString ID)                               {return GetTree("MonALISA.ProductionCycleID", ID, "");}
-  TTree*  GetCPassTree(const char * period, const  char *pass); 
-
-  TChain* GetChain(TString type, TString period, TString pass);
+  TTree* GetCPassTree(const char * period, const  char *pass);
+  TTree *GetProductionTree(TString period, TString pass);
+  
+  TTree*  GetTreeAliVersRD();
+  TTree*  GetTreeAliVersMC();
+  TTree*  GetTreeMCPassGuess();
+  TString GetMCPassGuess(TString MCprodname);
+  
+  TChain* GetChain(TString type, TString period, TString pass, Int_t buildIndex=1);
+  TChain* GetChain(TString type, TString period, TString pass, TString friendList);
   TChain* GetChainMC()                                                  {return GetChain("MonALISA.MC", "", "");}
   TChain* GetChainRCT(TString period, TString pass)                     {return GetChain("MonALISA.RCT", period, pass);}
   TChain* GetChainDataQA(TString detector, TString period, TString pass){return GetChain("QA." + detector, period, pass);}
@@ -117,7 +125,8 @@ public:
   void SetupVariables(TString& internalFilename, TString& internalLocation, Bool_t& resourceIsTree, TString& pathStructure, \
                       TString& detector, TString& rootFileName, TString& treeName, const TString& type, const TString& period, const TString& pass, TString &indexName);
   const TString GetYearFromPeriod(const TString& period);
-  const TString Wget(TString& mifFilePath, const TString& internalLocation, TString rootFileName, const TString& externalLocation);
+  const TString CurlMif(TString& mifFilePath, const TString& internalLocation, TString rootFileName, const TString& externalLocation);
+  const TString CurlTree(const TString internalFilename, const TString& externalLocation);
   const TString CreatePath(TString type, TString period, TString pass);
   Bool_t IsDownloadNeeded(TString file, TString type);
   Int_t fVerbose;                                   ///< verbosity flag 

@@ -2208,3 +2208,31 @@ Int_t AliTOFGeometry::GetTOFsupermodule(Int_t index)
   else return index/NpadXStrip()/NStripXSector();
 
 }
+//-----------------------------------------------------------------------------
+Int_t AliTOFGeometry::FromDDLtoLTM(Int_t ddl,Int_t chain){
+  Int_t iLTMindex=-1;
+  switch(ddl%NDDL()){
+  case 1:
+    iLTMindex=chain;
+    break;
+  case 3:
+    iLTMindex=36+!chain;
+    break;
+  default:
+    break;
+  }
+  iLTMindex+=2*(Int_t)(ddl/NDDL());
+
+  // patch for channels with hardware cable links swapped
+  if(iLTMindex==20) return 21;
+  else if (iLTMindex==21) return 20;
+  else if (iLTMindex==22) return 23;
+  else if (iLTMindex==23) return 22;
+  else if (iLTMindex==28) return 29;
+  else if (iLTMindex==29) return 28;
+  else return iLTMindex;
+}
+//-----------------------------------------------------------------------------
+Int_t AliTOFGeometry::FromDDLtoChannelIndex(Int_t tdcChan,Int_t itdc){
+  return tdcChan+itdc*NCh()-12*NCh();
+}

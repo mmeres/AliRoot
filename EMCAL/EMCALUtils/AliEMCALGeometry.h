@@ -36,11 +36,11 @@
 ///
 ///   * EMCAL_COMPLETE12SMV1: contains 12 SM for runs from year 2012 and on
 ///
-///   * EMCAL_COMPLETE12SMV1_DCAL: contains 12 SM and 6 DCAL SM
+///   * EMCAL_COMPLETE12SMV1_DCAL: contains 12 SM and 6 DCAL SM -- not for standard user mode
 ///
 ///   * EMCAL_COMPLETE12SMV1_DCAL_8SM: contains 12 SM and 8 DCAL SM including the DCAL extention (2 SM)
 ///
-///   * EMCAL_COMPLETE12SMV1_DCAL_DEV: contains 12 SM shifted and 10 DCAL SM
+///   * EMCAL_COMPLETE12SMV1_DCAL_DEV: contains 12 SM shifted and 10 DCAL SM -- not for stardard user mode
 ///
 ///   * EMCAL_WSUC (Wayne State test stand)
 ///      * = no definite equivalent in old notation, was only used by
@@ -52,12 +52,17 @@
 ///         You have to use just the correct name of geometry. If name is empty string the
 ///         default name of geometry will be used.
 ///
-///  AliEMCALGeometry* g = AliEMCALGeometry::GetInstance(name,title); // first time
+///    AliEMCALGeometry* g = AliEMCALGeometry::GetInstance(name,title); // first time
 ///  ..
-///  g = AliEMCALGeometry::GetInstance();                             // after first time
+///    g = AliEMCALGeometry::GetInstance();                             // after first time
 ///
-///  MC:   If you work with MC data you have to get geometry the next way:
-///  ==                                      =============================
+/// where name is one of the above names.
+///
+/// If you do now know what name to assign you can rely on the run number via:
+///   AliEMCALGeometry* g = AliEMCALGeometry::GetInstanceFromRunNumber(runNumber);
+/// specially interesting at the analysis level, and used also when anchoring simulations to data.
+///
+///  MC:   If you work with MC data you can get geometry the next way (kind of expert mode):
 ///  AliRunLoader    *rl   = AliRunLoader::Instance();
 ///  AliEMCALGeometry *geom = dynamic_cast<AliEMCAL*>(rl->GetAliRun()->GetDetector("EMCAL"))->GetGeometry();
 ///  TGeoManager::Import("geometry.root");
@@ -73,21 +78,6 @@
 /// \author Magali Estienne (magali.estienne@subatech.in2p3.fr)
 /// \author M.L. Wang CCNU & Subatech Adapted for DCAL Oct-18-2012
 ///
-///
-/// Usage:
-///        You can create the AliEMCALGeometry object independently from anything.
-///        You have to use just the correct name of geometry. If name is empty string the
-///        default name of geometry will be used.
-///
-///  AliEMCALGeometry* geom = new AliEMCALGeometry("EMCAL_COMPLETE12SMV1","EMCAL");
-///  TGeoManager::Import("geometry.root");
-///
-///  MC:   If you work with MC data you have to get geometry the next way:
-///  ==                                      =============================
-/// !!!!!!!!! This part has to be modified
-///  AliRunLoader    *rl   = AliRunLoader::GetRunLoader();
-///  AliEMCALEMCGeometry *geom = dynamic_cast<AliEMCAL*>(rl->GetAliRun()->GetDetector("EMCAL"))->GetGeometry();
-///  TGeoManager::Import("geometry.root");
 //_________________________________________________________________________
 
 // --- ROOT system ---
@@ -288,6 +278,9 @@ public:
   void    GetCellPhiEtaIndexInSModule(Int_t nSupMod, Int_t nModule, Int_t nIphi, Int_t nIeta,
                                       Int_t &iphi, Int_t &ieta) const ;
   Int_t   GetSuperModuleNumber(Int_t absId)  const;
+  
+  /// \return number of modules in phi direction, it depends on the SM number, 24/2 default, 8/2 in 1/3 SMs
+  /// \param nSupMod super-module number to check
   Int_t   GetNumberOfModuleInPhiDirection(Int_t nSupMod)  const
   { 
     if(     GetSMType(nSupMod) == kEMCAL_Half) return fNPhi/2;
@@ -295,6 +288,25 @@ public:
     else if(GetSMType(nSupMod) == kDCAL_Ext)   return fNPhi/3;
     else                                       return fNPhi;
   } 
+  
+  /// \return number of cells in phi direction, it depends on the SM number, 24/2 default, 8/2 in 1/3 SMs
+  /// \param nSupMod super-module number to check
+  Int_t   GetNumberOfCellsInPhiDirection(Int_t nSupMod)  const 
+  { return fNPHIdiv*GetNumberOfModuleInPhiDirection(nSupMod) ; }
+  
+  /// \return number of modules in phi direction, it depends on the SM number, 48/2 default, 32/2 in DCal SMs
+  /// \param nSupMod super-module number to check
+  Int_t GetNumberOfModuleInEtaDirection(Int_t nSupMod)  const
+  { 
+    if ( GetSMType(nSupMod) == kDCAL_Standard ) return (fNZ*2)/3;
+    else                                        return fNZ;
+  } 
+
+  /// \return number of cells in phi direction, it depends on the SM number, 48/2 default, 32/2 in DCal SMs
+  /// \param nSupMod super-module number to check
+  Int_t   GetNumberOfCellsInEtaDirection(Int_t nSupMod)  const 
+  { return fNETAdiv*GetNumberOfModuleInEtaDirection(nSupMod) ; }
+
   // From cell indexes to abs cell id
   void    GetModuleIndexesFromCellIndexesInSModule(Int_t nSupMod, Int_t iphi, Int_t ieta, 
 					      Int_t &iphim, Int_t &ietam, Int_t &nModule) const;
@@ -313,11 +325,11 @@ public:
 
   Int_t  * GetEMCSystem()            const { return fEMCGeometry->GetEMCSystem()          ; }     //EMC System, SM type list
   // Local Coordinates of SM
-  TArrayD  GetCentersOfCellsEtaDir() const { return fCentersOfCellsEtaDir ; }     // size fNEta*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
-  TArrayD  GetCentersOfCellsXDir()   const { return fCentersOfCellsXDir   ; }     // size fNEta*fNETAdiv (for TRD1 only) (       x in SM, in cm)
+  TArrayD  GetCentersOfCellsEtaDir() const { return fCentersOfCellsEtaDir ; }     // size fNZ*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
+  TArrayD  GetCentersOfCellsXDir()   const { return fCentersOfCellsXDir   ; }     // size fNZ*fNETAdiv (for TRD1 only) (       x in SM, in cm)
   TArrayD  GetCentersOfCellsPhiDir() const { return fCentersOfCellsPhiDir ; }     // size fNPhi*fNPHIdiv (for TRD1 only) (phi or y in SM, in cm)
   //
-  TArrayD  GetEtaCentersOfCells()    const { return fEtaCentersOfCells    ; }     // [fNEta*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position; 
+  TArrayD  GetEtaCentersOfCells()    const { return fEtaCentersOfCells    ; }     // [fNZ*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position; 
   TArrayD  GetPhiCentersOfCells()    const { return fPhiCentersOfCells    ; }     // [fNPhi*fNPHIdiv] from center of SM (-10. < phi < +10.)
 	
   ///////////////////
@@ -332,7 +344,7 @@ public:
   }
 
   //Method to set shift-rotational matrixes from ESDHeader
-  void SetMisalMatrix(const TGeoHMatrix * m, Int_t smod);
+  void SetMisalMatrix(const TGeoHMatrix * m, Int_t smod) const;
 	
   //Alternate geometry that allows to calculate tower position for different particles and different alignments
   void RecalculateTowerPosition(Float_t drow, Float_t dcol, const Int_t sm, const Float_t depth,
@@ -447,12 +459,12 @@ protected:
   
   // Local Coordinates of SM
   TArrayD  fPhiCentersOfCells;       ///< [fNPhi*fNPHIdiv] from center of SM (-10. < phi < +10.)
-  TArrayD  fCentersOfCellsEtaDir;    ///< Size fNEta*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
+  TArrayD  fCentersOfCellsEtaDir;    ///< Size fNZ*fNETAdiv (for TRD1 only) (eta or z in SM, in cm)
   TArrayD  fCentersOfCellsPhiDir;    ///< Size fNPhi*fNPHIdiv (for TRD1 only) (phi or y in SM, in cm)
-  TArrayD  fEtaCentersOfCells;       ///< [fNEta*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position; 
+  TArrayD  fEtaCentersOfCells;       ///< [fNZ*fNETAdiv*fNPhi*fNPHIdiv], positive direction (eta>0); eta depend from phi position; 
   Int_t    fNCells;                  ///< Number of cells in calo
   Int_t    fNPhi;                    ///< Number of Towers in the PHI direction
-  TArrayD  fCentersOfCellsXDir;      ///< Size fNEta*fNETAdiv (for TRD1 only) (       x in SM, in cm)
+  TArrayD  fCentersOfCellsXDir;      ///< Size fNZ*fNETAdiv (for TRD1 only) (       x in SM, in cm)
   Float_t  fEnvelop[3];              ///< The GEANT TUB for the detector 
   Float_t  fArm1EtaMin;              ///< Minimum pseudorapidity position of EMCAL in Eta
   Float_t  fArm1EtaMax;              ///< Maximum pseudorapidity position of EMCAL in Eta
@@ -479,8 +491,7 @@ protected:
   Float_t  fZLength;		             ///< Total length in z direction
   Float_t  fSampling;		             ///< Sampling factor
 	
-  TGeoHMatrix* fkSModuleMatrix[AliEMCALGeoParams::fgkEMCALModules] ; ///< Orientations of EMCAL super modules
-  Bool_t   fUseExternalMatrices;     ///< Use the matrices set in fkSModuleMatrix and not those in the geoManager
+  mutable const TGeoHMatrix* fkSModuleMatrix[AliEMCALGeoParams::fgkEMCALModules] ; ///< Orientations of EMCAL super modules
 	
 private:
   
@@ -489,7 +500,7 @@ private:
   static const Char_t     *fgkDefaultGeometryName; ///< Default name of geometry
   
   /// \cond CLASSIMP
-  ClassDef(AliEMCALGeometry,17) ;       
+  ClassDef(AliEMCALGeometry,18) ;
   /// \endcond
 
 } ;

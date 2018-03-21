@@ -20,6 +20,7 @@
 #include <TPRegexp.h>
 
 #include "AliMagF.h"
+#include "AliMagFast.h"
 #include "AliMagWrapCheb.h"
 #include "AliLog.h"
 
@@ -27,6 +28,7 @@ ClassImp(AliMagF)
 
 const Double_t AliMagF::fgkSol2DipZ    =  -700.;  
 const UShort_t AliMagF::fgkPolarityConvention = AliMagF::kConvLHC;
+Bool_t AliMagF::fgAllowFastField = kFALSE;
 /*
  Explanation for polarity conventions: these are the mapping between the
  current signs and main field components in L3 (Bz) and Dipole (Bx) (in Alice frame)
@@ -67,6 +69,7 @@ const UShort_t AliMagF::fgkPolarityConvention = AliMagF::kConvLHC;
 AliMagF::AliMagF():
   TVirtualMagField(),
   fMeasuredMap(0),
+  fFastField(0),
   fMapType(k5kG),
   fSolenoid(0),
   fBeamType(kNoBeamField),
@@ -92,9 +95,11 @@ AliMagF::AliMagF():
 
 //_______________________________________________________________________
 AliMagF::AliMagF(const char *name, const char* title, Double_t factorSol, Double_t factorDip, 
-		 BMap_t maptype, BeamType_t bt, Double_t be,Int_t integ, Double_t fmax, const char* path):
+		 BMap_t maptype, BeamType_t bt, Double_t be, float a2z,
+		 Int_t integ, Double_t fmax, const char* path):
   TVirtualMagField(name),
   fMeasuredMap(0),
+  fFastField(0),
   fMapType(maptype),
   fSolenoid(0),
   fBeamType(bt),
@@ -129,7 +134,70 @@ AliMagF::AliMagF(const char *name, const char* title, Double_t factorSol, Double
     if      (fBeamType == kBeamTypepp) fBeamEnergy = 7000.; // max proton energy
     else if (fBeamType == kBeamTypeAA) fBeamEnergy = 2760;  // max PbPb energy
     else if (fBeamType == kBeamTypepA || fBeamType == kBeamTypeAp) fBeamEnergy = 2760;  // same rigitiy max PbPb energy
-    AliInfo("Maximim possible beam energy for requested beam is assumed");
+    AliInfo("Maximum possible beam energy for requested beam is assumed");
+  } 
+  const char* parname = 0;
+  //  
+  if      (fMapType == k2kG) parname = fDipoleOFF ? "Sol12_Dip0_Hole":"Sol12_Dip6_Hole";
+  else if (fMapType == k5kG) parname = fDipoleOFF ? "Sol30_Dip0_Hole":"Sol30_Dip6_Hole";
+  else if (fMapType == k5kGUniform) parname = "Sol30_Dip6_Uniform";
+  else AliFatal(Form("Unknown field identifier %d is requested\n",fMapType));
+  //
+  SetDataFileName(path);
+  SetParamName(parname);
+  //
+  LoadParameterization();
+  InitMachineField(fBeamType,fBeamEnergy, a2z);
+  double xyz[3]={0.,0.,0.};
+  fSolenoid = GetBz(xyz);
+  SetFactorSol(factorSol);
+  SetFactorDip(factorDip);
+  AllowFastField( GetFastFieldDefault() );
+  Print("a");
+}
+
+//_______________________________________________________________________
+AliMagF::AliMagF(const char *name, const char* title, Double_t factorSol, Double_t factorDip, 
+		 BMap_t maptype, BeamType_t bt, Double_t be,
+		 Int_t integ, Double_t fmax, const char* path):
+  TVirtualMagField(name),
+  fMeasuredMap(0),
+  fFastField(0),
+  fMapType(maptype),
+  fSolenoid(0),
+  fBeamType(bt),
+  fBeamEnergy(be),
+  //
+  fInteg(integ),
+  fPrecInteg(1),
+  fFactorSol(1.),
+  fFactorDip(1.),
+  fMax(fmax),
+  fDipoleOFF(factorDip==0.),
+  //
+  fQuadGradient(0),
+  fDipoleField(0),
+  fCCorrField(0), 
+  fACorr1Field(0),
+  fACorr2Field(0),
+  fParNames("","")
+{
+  // Initialize the field with Geant integration option "integ" and max field "fmax,
+  // Impose scaling of parameterized L3 field by factorSol and of dipole by factorDip.
+  // The "be" is the energy of the beam in GeV/nucleon
+  //
+  SetTitle(title);
+  if(integ<0 || integ > 2) {
+    AliWarning(Form("Invalid magnetic field flag: %5d; Helix tracking chosen instead",integ));
+    fInteg = 2;
+  }
+  if (fInteg == 0) fPrecInteg = 0;
+  //
+  if (fBeamEnergy<=0 && fBeamType!=kNoBeamField) {
+    if      (fBeamType == kBeamTypepp) fBeamEnergy = 7000.; // max proton energy
+    else if (fBeamType == kBeamTypeAA) fBeamEnergy = 2760;  // max PbPb energy
+    else if (fBeamType == kBeamTypepA || fBeamType == kBeamTypeAp) fBeamEnergy = 2760;  // same rigitiy max PbPb energy
+    AliInfo("Maximum possible beam energy for requested beam is assumed");
   } 
   const char* parname = 0;
   //  
@@ -147,6 +215,7 @@ AliMagF::AliMagF(const char *name, const char* title, Double_t factorSol, Double
   fSolenoid = GetBz(xyz);
   SetFactorSol(factorSol);
   SetFactorDip(factorDip);
+  AllowFastField( GetFastFieldDefault() );
   Print("a");
 }
 
@@ -154,6 +223,7 @@ AliMagF::AliMagF(const char *name, const char* title, Double_t factorSol, Double
 AliMagF::AliMagF(const AliMagF &src):
   TVirtualMagField(src),
   fMeasuredMap(0),
+  fFastField(0),
   fMapType(src.fMapType),
   fSolenoid(src.fSolenoid),
   fBeamType(src.fBeamType),
@@ -172,12 +242,14 @@ AliMagF::AliMagF(const AliMagF &src):
   fParNames(src.fParNames)
 {
   if (src.fMeasuredMap) fMeasuredMap = new AliMagWrapCheb(*src.fMeasuredMap);
+  if (src.fFastField) fFastField = new AliMagFast(GetFactorSol(),fMapType==k2kG ? 2:5);
 }
 
 //_______________________________________________________________________
 AliMagF::~AliMagF()
 {
   delete fMeasuredMap;
+  delete fFastField;
 }
 
 //_______________________________________________________________________
@@ -210,6 +282,7 @@ void AliMagF::Field(const Double_t *xyz, Double_t *b)
   // Method to calculate the field at point  xyz
   //
   //  b[0]=b[1]=b[2]=0.0;
+  if (fFastField && fFastField->Field(xyz,b)) return;
   if (fMeasuredMap && xyz[2]>fMeasuredMap->GetMinZ() && xyz[2]<fMeasuredMap->GetMaxZ()) {
     fMeasuredMap->Field(xyz,b);
     if (xyz[2]>fgkSol2DipZ || fDipoleOFF) for (int i=3;i--;) b[i] *= fFactorSol;
@@ -224,6 +297,10 @@ Double_t AliMagF::GetBz(const Double_t *xyz) const
 {
   // Method to calculate the field at point  xyz
   //
+  if (fFastField) {
+    double bz=0;
+    if (fFastField->GetBz(xyz,bz)) return bz;
+  }
   if (fMeasuredMap && xyz[2]>fMeasuredMap->GetMinZ() && xyz[2]<fMeasuredMap->GetMaxZ()) {
     double bz = fMeasuredMap->GetBz(xyz);
     return (xyz[2]>fgkSol2DipZ || fDipoleOFF) ? bz*fFactorSol : bz*fFactorDip;    
@@ -239,6 +316,10 @@ AliMagF& AliMagF::operator=(const AliMagF& src)
       if (fMeasuredMap) delete fMeasuredMap;
       fMeasuredMap = new AliMagWrapCheb(*src.fMeasuredMap);
     }
+    if (src.fFastField) { 
+      if (fFastField) delete fFastField;
+      fFastField = new AliMagFast(*src.fFastField);
+    }    
     SetName(src.GetName());
     fSolenoid    = src.fSolenoid;
     fBeamType    = src.fBeamType;
@@ -255,7 +336,7 @@ AliMagF& AliMagF::operator=(const AliMagF& src)
 }
 
 //_______________________________________________________________________
-void AliMagF::InitMachineField(BeamType_t btype, Double_t benergy)
+void AliMagF::InitMachineField(BeamType_t btype, Double_t benergy, float a2z)
 {
   if (btype==kNoBeamField) {
     fQuadGradient = fDipoleField = fCCorrField = fACorr1Field = fACorr2Field = 0.;
@@ -264,9 +345,12 @@ void AliMagF::InitMachineField(BeamType_t btype, Double_t benergy)
   //
   double rigScale = benergy/7000.;   // scale according to ratio of E/Enominal
   // for ions assume PbPb (with energy provided per nucleon) and account for A/Z
-  if (btype==kBeamTypeAA/* || btype==kBeamTypepA || btype==kBeamTypeAp */) rigScale *= 208./82.;
   // Attention: in p-Pb the energy recorded in the GRP is the PROTON energy, no rigidity
   // rescaling is needed
+  if (btype==kBeamTypeAA/* || btype==kBeamTypepA || btype==kBeamTypeAp */) {
+    AliInfoF("Beam rigidity factor rescalded by %.3f",a2z);
+    rigScale *= a2z;
+  }
   //
   fQuadGradient = 22.0002*rigScale;
   fDipoleField  = 37.8781*rigScale;
@@ -426,6 +510,7 @@ void AliMagF::SetFactorSol(Float_t fc)
   case kConvLHC    : fFactorSol = -fc; break;
   default          : fFactorSol =  fc; break;  // case kConvMap2005: fFactorSol =  fc; break;
   }
+  if (fFastField) fFastField->SetFactorSol(GetFactorSol());
 }
 
 //_______________________________________________________________________
@@ -463,8 +548,8 @@ Double_t AliMagF::GetFactorDip() const
 
 //_____________________________________________________________________________
 AliMagF* AliMagF::CreateFieldMap(Float_t l3Cur, Float_t diCur, Int_t convention, Bool_t uniform,
-				 Float_t beamenergy, const Char_t *beamtype, const Char_t *path,
-				 Bool_t returnNULLOnInvalidCurrent) 
+				 Float_t beamenergy, const Char_t *beamtype, int az0, int az1,
+				 const Char_t *path, Bool_t returnNULLOnInvalidCurrent) 
 {
   //------------------------------------------------
   // The magnetic field map, defined externally...
@@ -546,7 +631,22 @@ AliMagF* AliMagF::CreateFieldMap(Float_t l3Cur, Float_t diCur, Int_t convention,
   // LHC and DCS08 conventions have opposite dipole polarities
   if ( GetPolarityConvention() != convention) sclDip = -sclDip;
   //
-  return new AliMagF("MagneticFieldMap", ttl,sclL3,sclDip,map,btype,beamenergy,2,10.,path);
+  float a2z = -1.; // rigidity factor for symmetric ion beams 
+  if (az0==az1 && az0>0) {
+    int beamA = az0/1000;
+    int beamZ = az0%1000;
+    if (beamZ) a2z = float(beamA)/beamZ;
+  }
+  if (a2z<0) {
+    if (btype == kBeamTypeAA) { // relevant only for ion beams
+      AliWarningClassF("Beam is A-A but supplied AZ records are %d %d, PbPb is assumed",az0,az1);
+      a2z = 208./82.;
+    }
+    else {
+      a2z = 1.;
+    }
+  }
+  return new AliMagF("MagneticFieldMap", ttl,sclL3,sclDip,map,btype,beamenergy,a2z, 2,10.,path);
   //
 }
 
@@ -583,5 +683,17 @@ void AliMagF::Print(Option_t *opt) const
 		 GetBeamTypeText(),
 		 fBeamEnergy,fQuadGradient,fDipoleField));
     AliInfo(Form("Uses %s of %s",GetParamName(),GetDataFileName()));
+  }
+}
+
+//_____________________________________________________________________________
+void AliMagF::AllowFastField(Bool_t v)
+{
+  if (v) {
+    if (!fFastField) fFastField = new AliMagFast(GetFactorSol(),GetFactorDip(),fMapType==k2kG ? 2:5);
+  }
+  else {
+    delete fFastField;
+    fFastField = 0;
   }
 }

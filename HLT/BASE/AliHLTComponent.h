@@ -66,6 +66,7 @@
 #include "AliHLTDataTypes.h"
 #include "AliHLTCommonCDBEntries.h"
 #include "TList.h"
+#include "TTimeStamp.h"
 
 /* Matthias Dec 2006
  * The names have been changed for Aliroot's coding conventions sake
@@ -654,12 +655,6 @@ class AliHLTComponent : public AliHLTLogging {
   static string DataType2Text( const AliHLTComponentDataType& type, int mode=0);
   
   /**
-   * Helper functions to convert data type to a char array (ZMQ topic) and back
-   * fID goes first (8 chars) then fOrigin (4 chars)
-   **/
-  static void DataType2Topic( const AliHLTComponentDataType type, char* output );
-
-  /**
    * Calculate a CRC checksum of a data buffer.
    * Polynomial for the calculation is 0xD8.
    */
@@ -942,6 +937,11 @@ class AliHLTComponent : public AliHLTLogging {
    * get the full configuration string
    */
   string GetComponentArgs() const { return fComponentArgs; }
+  
+  /**
+   * Align the output buffer for the next block
+   */
+  void AlignOutputBufferFilled();
 
  protected:
 
@@ -1915,6 +1915,9 @@ class AliHLTComponent : public AliHLTLogging {
   int fPushbackPeriod;                                             //! transient
   /// time of last executed PushBack
   int fLastPushBackTime;                                           //! transient
+
+  /// current event's timestamp
+  TTimeStamp fCurrentTime;                                         //! transient
   
   /// Event modulo for down scaling the processing rate.
   int fEventModulo;                                                //! transient

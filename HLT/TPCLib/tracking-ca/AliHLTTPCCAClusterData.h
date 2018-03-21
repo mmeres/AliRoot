@@ -37,11 +37,19 @@ class AliHLTTPCCAClusterData
 
     struct Data {
       int fId;
-      int fRow;
+      short fRow;
+      short fFlags;
       float fX;
       float fY;
       float fZ;
       float fAmp;
+#ifdef HLTCA_FULL_CLUSTERDATA
+      float fPad;
+      float fTime;
+      float fAmpMax;
+      float fSigmaPad2;
+      float fSigmaTime2;
+#endif
     };
 
     /**
@@ -49,24 +57,15 @@ class AliHLTTPCCAClusterData
      */
     void StartReading( int sliceIndex, int guessForNumberOfClusters = 256 );
 
-    /**
-     *  read next cluster
-     */
-    void ReadCluster( int id, int iRow, float x, float y, float z, float amp ) {
-      if (fNumberOfClusters >= fAllocated) Allocate(fNumberOfClusters + 64);
-      Data d = { id, iRow, x, y, z, amp};
-      fData[fNumberOfClusters++] = d;
-    }
-
     Data* Clusters() { return(fData); }
     void SetNumberOfClusters(int number) {fNumberOfClusters = number;}
 
     /**
      * Read/Write Events from/to file
      */
-    void ReadEvent(std::istream &in);
+    void ReadEvent(std::istream &in, bool addData = false);
     void WriteEvent(std::ostream &out) const;
-    template <class T> void ReadEventVector(T* &data, std::istream &in, int MinSize = 0);
+    template <class T> void ReadEventVector(T* &data, std::istream &in, int MinSize = 0, bool addData = false);
     template <class T> void WriteEventVector(const T* const &data, std::ostream &out) const;
 
     /**
@@ -114,9 +113,12 @@ class AliHLTTPCCAClusterData
     /**
      * Return the row number/index of the given cluster.
      */
+    short Flags( int index ) const { return fData[index].fFlags; }
     int RowNumber( int index ) const { return fData[index].fRow; }
 
     Data *GetClusterData( int index ) { return &( fData[index] ); }
+
+    void Allocate( int number);
 
   private:
     AliHLTTPCCAClusterData(AliHLTTPCCAClusterData&): fSliceIndex( 0 ), fData( NULL ), fNumberOfClusters(0), fAllocated(0) {}
@@ -127,7 +129,6 @@ class AliHLTTPCCAClusterData
      */
     void Merge( int index1, int index2 );
 
-    void Allocate( int number);
     static bool CompareClusters( const Data &a, const Data &b ) { return ( a.fRow == b.fRow ? (a.fY < b.fY) : (a.fRow < b.fRow) ); }
 
     int fSliceIndex;  // the slice index this data belongs to

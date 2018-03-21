@@ -30,6 +30,8 @@ public:
   ~AliESDcascade();
   AliESDcascade& operator=(const AliESDcascade& cas);
   virtual void Copy(TObject &obj) const;
+    
+  Int_t RefitCascade(AliExternalTrackParam *bachelor); //to be invoked immediately after creation
 
 // Start with AliVParticle functions
   virtual Double_t Px() const { return fNmom[0]+fPmom[0]+fBachMom[0]; }
@@ -73,6 +75,7 @@ public:
   Double_t GetChi2Xi()  const {return fChi2Xi;}
   void     GetPxPyPz(Double_t &px, Double_t &py, Double_t &pz) const;
   void     GetXYZcascade(Double_t &x, Double_t &y, Double_t &z) const;
+  void     SetXYZcascade(Double_t x, Double_t y, Double_t z); //for testing purposes
   Double_t GetDcascade(Double_t x0, Double_t y0, Double_t z0) const;
 
   void     GetBPxPyPz(Double_t &px, Double_t &py, Double_t &pz) const {
@@ -85,7 +88,7 @@ public:
   void     SetDcaXiDaughters(Double_t rDcaXiDaughters=0.);
   Double_t GetDcaXiDaughters() const {return fDcaXiDaughters;}
   Double_t GetCascadeCosineOfPointingAngle(Double_t refPointX, Double_t refPointY, Double_t refPointZ) const;
-
+    
   void GetPosCovXi(Double_t cov[6]) const;
 
 protected: 
@@ -104,7 +107,7 @@ protected:
 private:
 
 
-  ClassDef(AliESDcascade,5) // reconstructed cascade vertex
+  ClassDef(AliESDcascade,6) // reconstructed cascade vertex
 };
 
 inline

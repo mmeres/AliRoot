@@ -4,6 +4,8 @@
  * See cxx source for full Copyright notice                               */
 
 #include "TObject.h"
+#include <iosfwd>
+#include <string>
 
 class TVector2;
 class TClonesArray;
@@ -63,6 +65,29 @@ public:
 
   AliEMCALTriggerSTUDCSConfig();
   virtual ~AliEMCALTriggerSTUDCSConfig();
+
+  /**
+   * @brief Equalty operator
+   * 
+   * Checks whether the two STU DCS configurations are the same. For equalty
+   * all setting must be the same. Error counters are not considered.
+   */
+  bool operator==(const AliEMCALTriggerSTUDCSConfig &other) const;
+
+  /**
+   * @brief Streaming operator
+   * 
+   * Printing all STU DCS settings on the output stream, except for the
+   * error counters
+   */
+  friend std::ostream &operator<<(std::ostream &stream, const AliEMCALTriggerSTUDCSConfig &config);
+
+  /**
+   * @brief Serialize object to JSON format
+   * 
+   * @return JSON-serialized TRU DCS config object 
+   */
+  std::string ToJSON() const;
   
   void    SetG(Int_t i, Int_t j, Int_t gv) { fG[i][j]    = gv; }
   void    SetJ(Int_t i, Int_t j, Int_t jv) { fJ[i][j]    = jv; }
@@ -71,6 +96,8 @@ public:
   void    SetFw(Int_t fv)                  { fFw         = fv; }
   void    SetPHOSScale(int iscale, int val) { fPHOSScale[iscale] = val; }
   void    SetTRUErrorCounts(Int_t itru, Int_t itime, ULong64_t errorcounts);
+  void    SetPatchSize(Int_t size)         { fPatchSize =size; }
+  void    SetMedianMode(Int_t mode)        { fMedian =mode;    }
   
   Int_t   GetG(int i, int j) const { return fG[i][j];    }
   Int_t   GetJ(int i, int j) const { return fJ[i][j];    }
@@ -78,14 +105,15 @@ public:
   Int_t   GetRegion()        const { return fRegion;     }
   Int_t   GetFw()            const { return fFw;         }
   Int_t   GetPHOSScale(Int_t iscale) const { return fPHOSScale[iscale]; }
+  Int_t   GetPatchSize()     const { return fPatchSize;  }
+  Int_t   GetMedianMode()    const { return fMedian;     }
   
   void    GetSegmentation(TVector2& v1, TVector2& v2, TVector2& v3, TVector2& v4) const;
   
   TClonesArray *GetErrorCountsForTRU(Int_t itru) const;
-  
-protected:
-  
   AliEMCALTriggerSTUDCSConfig           (const AliEMCALTriggerSTUDCSConfig &cd);
+
+protected:
   AliEMCALTriggerSTUDCSConfig &operator=(const AliEMCALTriggerSTUDCSConfig &cd);
 
 private:
@@ -96,10 +124,12 @@ private:
   Int_t                   fRegion;                    ///< Region
   Int_t                   fFw;                        ///< Firmware version
   Int_t                   fPHOSScale[4];              ///< PHOS scale factors
-  TClonesArray            *fTRUErrorCounts[32];       ///< TRU error counts
+  Int_t                   fPatchSize;                 ///< Jet patch size: 0 for 8x8 and 2 for 16x16
+  Int_t                   fMedian;                    ///< 1 in case of using EMCAL/DCAL for estimating the median
+  TClonesArray            *fTRUErrorCounts[68];       ///< TRU error counts
   
   /// \cond CLASSIMP
-  ClassDef(AliEMCALTriggerSTUDCSConfig,4) ;
+  ClassDef(AliEMCALTriggerSTUDCSConfig,5) ;
   /// \endcond
   
 };

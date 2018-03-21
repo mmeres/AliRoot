@@ -1336,10 +1336,13 @@ Bool_t AliReconstruction::InitGRP() {
     Int_t  polConvention = fGRPData->IsPolarityConventionLHC() ? AliMagF::kConvLHC : AliMagF::kConvDCS2008;
     Bool_t uniformB = fGRPData->IsUniformBMap();
 
+    int az0 = fGRPData->GetSingleBeamType(0).Atoi();
+    int az1 = fGRPData->GetSingleBeamType(1).Atoi();    
+
     if (ok) { 
       AliMagF* fld = AliMagF::CreateFieldMap(TMath::Abs(l3Current) * (l3Polarity ? -1:1), 
 					     TMath::Abs(diCurrent) * (diPolarity ? -1:1), 
-					     polConvention,uniformB,beamEnergy, beamType.Data());
+					     polConvention,uniformB,beamEnergy, beamType.Data(),az0,az1);
       if (fld) {
 	TGeoGlobalMagField::Instance()->SetField( fld );
 	TGeoGlobalMagField::Instance()->Lock();
@@ -2270,6 +2273,8 @@ Bool_t AliReconstruction::ProcessEvent(Int_t iEvent)
 	  !FillESD(fhltesd, "HLT")) {
 	if (fStopOnError) {CleanUp(); return kFALSE;}
       }
+      //Reset, since this is overwritten by online HLT esd, which has no idea about number in chunk
+      fhltesd->SetEventNumberInFile(fRunLoader->GetHeader()->GetEventNrInRun());
     }
 
     // local single event reconstruction
@@ -3628,6 +3633,24 @@ Bool_t AliReconstruction::InitRunLoader()
   TFile *gafile = TFile::Open(fGAliceFileName.Data());
   //  if (!gSystem->AccessPathName(fGAliceFileName.Data())) { // galice.root exists
   if (gafile) { // galice.root exists
+
+    // check if we are in bg.embedding mode, if needed, add MCHandler
+    TObjArray* embBKGPaths = 0;
+    gafile->GetObject(AliStack::GetEmbeddingBKGPathsKey(),embBKGPaths);
+    if (embBKGPaths) {
+      AliInfo("Embedding mode autodetected");
+      if (fMCEventHandlerExt) {
+	AliInfo("MCEvent handler was set externally, skip internal initialization");
+      }
+      else {
+	AliMCEventHandler* mcHandler = new AliMCEventHandler();
+	mcHandler->SetPreReadMode(AliMCEventHandler::kLmPreRead);
+	mcHandler->SetReadTR(kFALSE);
+	SetMCEventHandler(mcHandler);
+      }
+      delete embBKGPaths;
+    }
+
     gafile->Close();
     delete gafile;
 
@@ -3653,6 +3676,7 @@ Bool_t AliReconstruction::InitRunLoader()
     fRunLoader->LoadHeader();
     fRunLoader->LoadKinematics();
 
+    
   } else {               // galice.root does not exist
     if (!fRawReader) {
       AliError(Form("the file %s does not exist", fGAliceFileName.Data()));

@@ -82,6 +82,8 @@
 #pragma link C++ class  AliCheb2DStackF+;
 #pragma link C++ class  AliCheb2DStackS+;
 
+#pragma link C++ class  AliMagFast+;
+
 #pragma link C++ class  AliNeutralTrackParam+;
 
 #pragma link C++ class AliCodeTimer+;
@@ -127,6 +129,7 @@
 #pragma link C++ class AliDAQ+;
 #pragma link C++ class AliRefArray+;
 
+#pragma link C++ class AliOADBObjCache+;
 #pragma link C++ class AliOADBContainer+;
 
 #pragma link C++ class AliMathBase+;
@@ -154,6 +157,7 @@
 #pragma link C++ class AliMergeableCollection+;
 #pragma link C++ class AliMergeableCollectionIterator+;
 #pragma link C++ class AliMergeableCollectionProxy+;
+#pragma link C++ class AliMergeable+;
 
 #pragma link C++ class AliMultSelectionBase+;
 

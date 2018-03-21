@@ -56,7 +56,7 @@ public:
   AliHLTComponent* Spawn(); 							   
   /** interface function, see @ref AliHLTComponent for description */
   void GetOCDBObjectDescription( TMap* const targetMap);
-  
+
 protected:
 	
   // Protected functions to implement AliHLTComponent's interface.
@@ -83,15 +83,18 @@ private:
   /** assignment operator prohibited */
   AliHLTTPCClusterTransformationComponent& operator=(const AliHLTTPCClusterTransformationComponent&);
 
+  void PrintDebugInfo();
+
   static const char* fgkOCDBEntryClusterTransformation; //!transient
   static AliHLTTPCClusterTransformation fgTransform; //!transient
   static Bool_t fgTimeInitialisedFromEvent; //!transient
   bool fOfflineMode; //Run in offline mode (for hlt simulation in offline)
+  bool fOfflineKeepInitialTimestamp; //Do not update the transformation map, even when the time stamp changes
   int fInitializeByObjectInDoEvent;	//Do not initialize the transformation but wait for transformation objects arriving in DoEvent loop
   bool fInitialized;	//Are we initialized?
   bool fTPCPresent;	//Is TPC present in GRP, if not skip init
-
-  Bool_t fDataId; // change output data description
+  bool fIsMC; //Are we processing MC
+  bool fUseOrigTransform; //Use original TPC transform instead of fast HLT transform map
 
   AliHLTComponentBenchmark fBenchmark; // benchmarks
 

@@ -760,6 +760,8 @@ WARN_LOGFILE           =
 
 INPUT                  = @CMAKE_SOURCE_DIR@/doxygen \
                          @CMAKE_SOURCE_DIR@/STAT \
+                         @CMAKE_SOURCE_DIR@/STAT/test \
+                         @CMAKE_SOURCE_DIR@/STAT/Macros \
                          @CMAKE_SOURCE_DIR@/TPC \
                          @CMAKE_SOURCE_DIR@/TPC/Attic \
                          @CMAKE_SOURCE_DIR@/TPC/Base/test \
@@ -802,6 +804,12 @@ INPUT                  = @CMAKE_SOURCE_DIR@/doxygen \
                          @CMAKE_SOURCE_DIR@/MONITOR \
                          @CMAKE_SOURCE_DIR@/MONITOR/MONITORzmq \
                          @CMAKE_SOURCE_DIR@/MONITOR/MONITOR \
+                         @CMAKE_SOURCE_DIR@/STEER \
+                         @CMAKE_SOURCE_DIR@/STEER/STEER \
+                         @CMAKE_SOURCE_DIR@/STEER/STEERBase \
+                         @CMAKE_SOURCE_DIR@/STEER/AOD \
+                         @CMAKE_SOURCE_DIR@/STEER/CDB \
+                         @CMAKE_SOURCE_DIR@/STEER/ESD \
                          @CMAKE_SOURCE_DIR@/EMCAL \
                          @CMAKE_SOURCE_DIR@/EMCAL/DA \
                          @CMAKE_SOURCE_DIR@/EMCAL/EMCALbase \
@@ -894,7 +902,7 @@ EXCLUDE_PATTERNS       =
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories use the pattern */test/*
 
-EXCLUDE_SYMBOLS        =
+EXCLUDE_SYMBOLS        = ClassDef ClassImp
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include
@@ -2035,7 +2043,7 @@ ENABLE_PREPROCESSING   = YES
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES then
 # the macro expansion is limited to the macros specified with the PREDEFINED and
@@ -2043,7 +2051,7 @@ MACRO_EXPANSION        = NO
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-EXPAND_ONLY_PREDEF     = NO
+EXPAND_ONLY_PREDEF     = YES
 
 # If the SEARCH_INCLUDES tag is set to YES, the include files in the
 # INCLUDE_PATH will be searched if a #include is found.
@@ -2075,7 +2083,7 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             =
+PREDEFINED             = ClassDef(X,Y)= ClassImp(X)=
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
@@ -2084,7 +2092,7 @@ PREDEFINED             =
 # definition found in the source code.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-EXPAND_AS_DEFINED      =
+EXPAND_AS_DEFINED      = ClassDef ClassImp
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES then doxygen's preprocessor will
 # remove all references to function-like macros that are alone on a line, have

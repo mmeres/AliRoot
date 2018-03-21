@@ -24,7 +24,7 @@ class AliHLTTPCCATrackLinearisation;
  * which is used by the AliHLTTPCCATracker slice tracker.
  *
  */
- MEM_CLASS_PRE() class AliHLTTPCCATrackParam
+MEM_CLASS_PRE() class AliHLTTPCCATrackParam
 {
   public:
 
@@ -42,6 +42,7 @@ class AliHLTTPCCATrackLinearisation;
     GPUd() float SinPhi() const { return fParam.SinPhi(); }
     GPUd() float DzDs()   const { return fParam.DzDs(); }
     GPUd() float QPt()    const { return fParam.QPt(); }
+    GPUd() float ZOffset() const{ return fParam.ZOffset(); }
     GPUd() float SignCosPhi() const { return fSignCosPhi; }
     GPUd() float Chi2()  const { return fChi2; }
     GPUd() int   NDF()   const { return fNDF; }
@@ -85,9 +86,10 @@ class AliHLTTPCCATrackLinearisation;
     GPUd() void SetX( float v )     {  fParam.SetX(v);    }
     GPUd() void SetY( float v )     {  fParam.SetY(v); }
     GPUd() void SetZ( float v )     {  fParam.SetZ(v); }
-    GPUd() void SetSinPhi( float v ) {  fParam.SetSinPhi(v); }
+    GPUd() void SetSinPhi( float v ){  fParam.SetSinPhi(v); }
     GPUd() void SetDzDs( float v )  {  fParam.SetDzDs(v); }
     GPUd() void SetQPt( float v )   {  fParam.SetQPt(v); }
+    GPUd() void SetZOffset( float v){  fParam.SetZOffset(v); }
     GPUd() void SetSignCosPhi( float v ) {  fSignCosPhi = v >= 0 ? 1 : -1; }
     GPUd() void SetChi2( float v )  {  fChi2 = v; }
     GPUd() void SetNDF( int v )   { fNDF = v; }
@@ -100,20 +102,20 @@ class AliHLTTPCCATrackLinearisation;
     GPUd() void GetDCAPoint( float x, float y, float z,
                              float &px, float &py, float &pz, float Bz  ) const;
 
-    GPUd() bool TransportToX( float x, float Bz, float maxSinPhi = .999 );
-    GPUd() bool TransportToXWithMaterial( float x, float Bz, float maxSinPhi = .999 );
+    GPUd() bool TransportToX( float x, float Bz, float maxSinPhi = HLTCA_MAX_SIN_PHI );
+    GPUd() bool TransportToXWithMaterial( float x, float Bz, float maxSinPhi = HLTCA_MAX_SIN_PHI );
 
     GPUd() bool  TransportToX( float x, AliHLTTPCCATrackLinearisation &t0,
-                               float Bz,  float maxSinPhi = .999, float *DL = 0 );
+                               float Bz,  float maxSinPhi = HLTCA_MAX_SIN_PHI, float *DL = 0 );
 
-    GPUd() bool  TransportToX( float x, float sinPhi0, float cosPhi0,  float Bz, float maxSinPhi = .999 );
+    GPUd() bool  TransportToX( float x, float sinPhi0, float cosPhi0,  float Bz, float maxSinPhi = HLTCA_MAX_SIN_PHI );
 
 
     GPUd() bool  TransportToXWithMaterial( float x,  AliHLTTPCCATrackLinearisation &t0,
-                                           AliHLTTPCCATrackFitParam &par, float Bz, float maxSinPhi = .999 );
+                                           AliHLTTPCCATrackFitParam &par, float Bz, float maxSinPhi = HLTCA_MAX_SIN_PHI );
 
     GPUd() bool  TransportToXWithMaterial( float x,
-                                           AliHLTTPCCATrackFitParam &par, float Bz, float maxSinPhi = .999 );
+                                           AliHLTTPCCATrackFitParam &par, float Bz, float maxSinPhi = HLTCA_MAX_SIN_PHI );
 
     GPUd() static float ApproximateBetheBloch( float beta2 );
     GPUd() static float BetheBlochGeant( float bg,
@@ -129,9 +131,9 @@ class AliHLTTPCCATrackLinearisation;
     GPUd() void CalculateFitParameters( AliHLTTPCCATrackFitParam &par, float mass = 0.13957 );
     GPUd() bool CorrectForMeanMaterial( float xOverX0,  float xTimesRho, const AliHLTTPCCATrackFitParam &par );
 
-    GPUd() bool Rotate( float alpha, float maxSinPhi = .999 );
-    GPUd() bool Rotate( float alpha, AliHLTTPCCATrackLinearisation &t0, float maxSinPhi = .999 );
-    GPUd() bool Filter( float y, float z, float err2Y, float err2Z, float maxSinPhi = .999 );
+    GPUd() bool Rotate( float alpha, float maxSinPhi = HLTCA_MAX_SIN_PHI );
+    GPUd() bool Rotate( float alpha, AliHLTTPCCATrackLinearisation &t0, float maxSinPhi = HLTCA_MAX_SIN_PHI );
+    GPUd() bool Filter( float y, float z, float err2Y, float err2Z, float maxSinPhi = HLTCA_MAX_SIN_PHI, bool paramOnly = false );
 
     GPUd() bool CheckNumericalQuality() const;
 
@@ -175,7 +177,8 @@ class AliHLTTPCCATrackLinearisation;
   SetCov( 11, 0 );
   SetCov( 12, 0 );
   SetCov( 13, 0 );
-  SetCov( 14, 10. );
+  SetCov( 14, 1000. );
+  SetZOffset( 0 );
 }
 
 #endif //ALIHLTTPCCATRACKPARAM_H

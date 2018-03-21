@@ -21,8 +21,8 @@ include_directories(${AliRoot_SOURCE_DIR}/HLT/BASE/util
                    )
 
 # Additional include folders in alphabetical order except ROOT
-include_directories(${ROOT_INCLUDE_DIR}
-                    ${AliRoot_SOURCE_DIR}/ANALYSIS/ANALYSISalice
+include_directories(SYSTEM ${ROOT_INCLUDE_DIR})
+include_directories(${AliRoot_SOURCE_DIR}/ANALYSIS/ANALYSISalice
                     ${AliRoot_SOURCE_DIR}/HLT/BASE
                     ${AliRoot_SOURCE_DIR}/RAW/RAWDatabase
                     ${AliRoot_SOURCE_DIR}/RAW/RAWDatarec
@@ -64,16 +64,19 @@ set(SRCS
     AliHLTRootFileWriterComponent.cxx
     AliHLTRootSchemaEvolutionComponent.cxx
     AliHLTObjectRenamer.cxx
+    AliOptionParser.cxx
+    AliHLTexampleMergeableContainer.cxx
    )
 
 if(ZEROMQ_FOUND) 
   include_directories(
                       ${ZEROMQ_INCLUDE_DIR}
+                      ${AliRoot_SOURCE_DIR}/HLT/ZMQ
                       )
 
   set(SRCS
       ${SRCS}
-      AliZMQhelpers.cxx
+      AliHLTZMQhelpers.cxx
       AliZMQhistViewer.cxx
       AliZMQMTviewerGUI.cxx
      )
@@ -93,7 +96,7 @@ set(LIBDEPS STEERBase STEER AOD CDB ESD RAWDatabase RAWDatarec ANALYSISalice HLT
 generate_rootmap("${MODULE}" "${LIBDEPS}" "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE}LinkDef.h")
 
 if(ZEROMQ_FOUND)
-  set(LIBDEPS ${LIBDEPS} ${ZEROMQ_LIBRARIES})
+  set(LIBDEPS ${LIBDEPS} ${ZEROMQ_LIBRARIES} AliZMQhelpers)
 endif(ZEROMQ_FOUND)
 
 # Add a library to the project using the specified source files
@@ -104,9 +107,14 @@ target_link_libraries(${MODULE} ${LIBDEPS})
 set_target_properties(${MODULE} PROPERTIES COMPILE_FLAGS "")
 
 # System dependent: Modify the way the library is build
-if(${CMAKE_SYSTEM} MATCHES Darwin)
-    set_target_properties(${MODULE} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
-endif(${CMAKE_SYSTEM} MATCHES Darwin)
+if(${CMAKE_SYSTEM} MATCHES Darwin AND X11_FOUND)
+  set_target_properties(${MODULE} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+  include_directories(${X11_INCLUDE_DIR})
+  SET(CMAKE_EXE_LINKER_FLAGS 
+    "${CMAKE_EXE_LINKER_FLAGS} -L${X11_LIB_DIR}")
+else()
+  message(WARNING "X11 libraries not found - will NOT build ZMQhistViewer")
+endif(${CMAKE_SYSTEM} MATCHES Darwin AND X11_FOUND)
 
 # Installation
 install(TARGETS ${MODULE}
@@ -119,28 +127,28 @@ if(ZEROMQ_FOUND)
 
   # Additional include folders in alphabetical order except ROOT
   include_directories(
-                      ${AliRoot_SOURCE_DIR}/HLT/BASE/HOMER
                       ${ZEROMQ_INCLUDE_DIR}
                       )
 
   add_executable(ZMQfileProxy ZMQfileProxy.cxx)
-  target_link_libraries(ZMQfileProxy HLTbase AliHLTHOMER AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
-  add_executable(ZMQHOMERproxy ZMQHOMERproxy.cxx)
-  target_link_libraries(ZMQHOMERproxy HLTbase AliHLTHOMER AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
+  target_link_libraries(ZMQfileProxy HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
   add_executable(ZMQROOTmerger ZMQROOTmerger.cxx)
-  target_link_libraries(ZMQROOTmerger HLTbase AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core pthread)
+  target_link_libraries(ZMQROOTmerger HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core pthread)
   add_executable(ZMQhistSource ZMQhistSource.cxx)
-  target_link_libraries(ZMQhistSource HLTbase AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
-  add_executable(ZMQhistViewer ZMQhistViewer.cxx)
-  target_link_libraries(ZMQhistViewer HLTbase AliHLTGlobal AliHLTUtil RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core Hist Rint)
+  target_link_libraries(ZMQhistSource HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
+  if (X11_FOUND)
+    add_executable(ZMQhistViewer ZMQhistViewer.cxx)
+    target_link_libraries(ZMQhistViewer HLTbase AliHLTGlobal AliZMQhelpers AliHLTUtil RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core Hist Rint X11)
+    install(TARGETS ZMQhistViewer RUNTIME DESTINATION bin)
+  endif (X11_FOUND)
   add_executable(ZMQproxy ZMQproxy.cxx)
-  target_link_libraries(ZMQproxy HLTbase AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
+  target_link_libraries(ZMQproxy HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
   add_executable(ZMQHLTchain ZMQHLTchain.cxx)
-  target_link_libraries(ZMQHLTchain HLTbase AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
+  target_link_libraries(ZMQHLTchain HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
   add_executable(ZMQexample ZMQexample.cxx)
-  target_link_libraries(ZMQexample HLTbase AliHLTGlobal RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
+  target_link_libraries(ZMQexample HLTbase AliHLTGlobal AliZMQhelpers RAWDatabase Geom Graf MathCore Net Tree EG Gpad Matrix Minuit Physics VMC Thread STEERBase XMLParser Graf3d RIO Hist Core)
   
   # Installation of 
-  install(TARGETS ZMQexample ZMQfileProxy ZMQHOMERproxy ZMQROOTmerger ZMQhistSource ZMQhistViewer ZMQproxy ZMQHLTchain RUNTIME DESTINATION bin)
-  install(PROGRAMS ZMQmonitor.py DESTINATION bin)
+  install(TARGETS ZMQexample ZMQfileProxy ZMQROOTmerger ZMQhistSource ZMQproxy ZMQHLTchain RUNTIME DESTINATION bin)
+  install(PROGRAMS ZMQmonitor.py o2header.py DESTINATION bin)
 endif(ZEROMQ_FOUND)

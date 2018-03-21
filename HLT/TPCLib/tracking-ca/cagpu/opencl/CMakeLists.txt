@@ -44,7 +44,7 @@ link_directories(${AMDAPPSDKROOT}/lib/x86_64)
 # -- checks the correct vendor implementation (AMD)
 # -- builds binary code (blob) for the found platform(s)
 add_executable(opencl_compiler ${CAGPUDIR}/makefiles/makefile_opencl_compiler.cpp)
-target_link_libraries(opencl_compiler amdocl64 OpenCL)
+target_link_libraries(opencl_compiler OpenCL)
 
 #convenience variables
 set(CL_SRC ${CAGPUDIR}/opencl/AliHLTTPCCAGPUTrackerOpenCL.cl )
@@ -80,8 +80,8 @@ include_directories(${AliRoot_SOURCE_DIR}/HLT/TPCLib/tracking-ca/cagpu/opencl
                    )
 
 # Additional include folders in alphabetical order except ROOT
-include_directories(${ROOT_INCLUDE_DIR}
-                    ${AliRoot_SOURCE_DIR}/HLT/BASE
+include_directories(SYSTEM ${ROOT_INCLUDE_DIR})
+include_directories(${AliRoot_SOURCE_DIR}/HLT/BASE
                     ${AMDAPPSDKROOT}/include
                    )
 
@@ -115,7 +115,7 @@ generate_rootmap("${MODULE}" "" "")
 # Add a library to the project using the specified source files
 add_library_tested(${MODULE} SHARED ${SRCS} G__${MODULE}.cxx)
 #MAD OpenCL run-time and driver
-target_link_libraries(${MODULE} amdocl64 OpenCL AliHLTTPC)
+target_link_libraries(${MODULE} OpenCL AliHLTTPC)
 
 # Installation
 install(TARGETS ${MODULE}

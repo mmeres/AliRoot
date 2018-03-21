@@ -82,21 +82,24 @@ int main(int argc, char **argv) {
   }
 
 
-  Int_t maxNEvents=15; // maximum number of events to be analyzed
+  Int_t maxNEvents=35; // maximum number of events to be analyzed
+  Int_t minNEvents=8; // minimum number of events to be analyzed
   const Int_t kTotDDL=24;
   const Int_t kModPerDDL=12;
   const Int_t kSides=2;
   UInt_t amSamplFreq=40;
   UChar_t cdhAttr=0;
 
-  gSystem->Exec("rm -f  SDDbase_LDC.tar");
+  gSystem->Exec("mv -f SDDbase_LDC.tar SDDbase_LDC_Previous.tar");
 
   AliITSOnlineSDDTP **tpan=new AliITSOnlineSDDTP*[kTotDDL*kModPerDDL*kSides];
   TH2F **histo=new TH2F*[kTotDDL*kModPerDDL*kSides];
   Bool_t isFilled[kTotDDL*kModPerDDL*kSides];
   Bool_t writtenoutput=kFALSE;
   Char_t hisnam[20];
+  Bool_t ddlActive[kTotDDL];
   for(Int_t iddl=0; iddl<kTotDDL;iddl++){
+    ddlActive[iddl]=kFALSE;
     for(Int_t imod=0; imod<kModPerDDL;imod++){
       for(Int_t isid=0;isid<kSides;isid++){
 	Int_t index=kSides*(kModPerDDL*iddl+imod)+isid;
@@ -203,6 +206,7 @@ int main(int argc, char **argv) {
 	  if(s->IsCompletedModule()) continue;
 	  if(s->IsCompletedDDL()) continue;
 	  if(iDDL>=0 && iDDL<kTotDDL){ 
+	    ddlActive[iDDL]=kTRUE;
 	    Int_t index=kSides*(kModPerDDL*iDDL+iCarlos)+s->GetChannel(); 
 	    histo[index]->Fill(s->GetCoord2(),s->GetCoord1(),s->GetSignal());
 	    isFilled[index]=1;
@@ -233,6 +237,11 @@ int main(int argc, char **argv) {
   TObjString timeinfo(Form("%02d%02d%02d%02d%02d%02d",time.GetYear()-2000,time.GetMonth(),time.GetDay(),time.GetHour(),time.GetMinute(),time.GetSecond()));
   printf("Run #%s, received %d calibration events, time %s\n",getenv("DATE_RUN_NUMBER"),ievUsed,timeinfo.GetString().Data());
 
+  if(ievUsed<minNEvents){
+    printf("Too few events for calibration\n");
+    return -2;
+  }
+
   /* report progress */
   daqDA_progressReport(90);
 
@@ -252,6 +261,11 @@ int main(int argc, char **argv) {
 	  sprintf(filnam,"SDDbase_ddl%02dc%02d_sid%d.data",iddl,imod,isid);
 	  sprintf(command,"tar -rf SDDbase_LDC.tar %s",filnam);
 	  gSystem->Exec(command);
+	}else{
+	  if(ddlActive[iddl]){
+	    Int_t goodAn=tpan[index]->GetNumberOfGoodAnodes();
+	    if(goodAn>0) printf("EMPTY DATA from DDL %d Carlos %d Side %d which had %d good anodes in pedestal -> output file not saved\n",iddl,imod,isid,goodAn);
+	  }
 	}
       }
     }  

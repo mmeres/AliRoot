@@ -100,11 +100,13 @@ class AliITSUv2Layer : public TObject {
     void CreateLayerTurbo(TGeoVolume *moth);
 
     TGeoVolume* CreateStave(const TGeoManager *mgr=gGeoManager);
-    //TGeoVolume* CreateChip(Double_t x, Double_t z, const TGeoManager *mgr=gGeoManager);
+    TGeoVolume* CreateChip(Double_t x,Double_t y, Double_t z, const TGeoManager *mgr=gGeoManager);
     TGeoVolume* CreateModuleInnerB(Double_t x,Double_t y, Double_t z, const TGeoManager *mgr=gGeoManager);
-    TGeoVolume* CreateChipInnerB(Double_t x,Double_t y, Double_t z, const TGeoManager *mgr=gGeoManager);
     TGeoVolume* CreateModuleOuterB(const TGeoManager *mgr=gGeoManager);
 
+    TGeoVolume* CreateIBFPCAlGnd(Double_t x, Double_t z, const TGeoManager *mgr=gGeoManager);
+    TGeoVolume* CreateIBFPCAlAnode(Double_t x, Double_t z, const TGeoManager *mgr=gGeoManager);
+    void CreateIBCapacitors(TGeoVolume* modvol, Double_t zchip, Double_t yzero, const TGeoManager* mgr = gGeoManager);
 
     TGeoVolume* CreateStaveInnerB(Double_t x, Double_t y, Double_t z, const TGeoManager *mgr=gGeoManager);
     TGeoVolume* CreateStaveStructInnerB(Double_t x,Double_t z, const TGeoManager *mgr=gGeoManager);
@@ -114,7 +116,7 @@ class AliITSUv2Layer : public TObject {
     TGeoVolume* CreateStaveModelInnerB21(Double_t x,Double_t z, const TGeoManager *mgr=gGeoManager);
     TGeoVolume* CreateStaveModelInnerB22(Double_t x,Double_t z, const TGeoManager *mgr=gGeoManager);
     TGeoVolume* CreateStaveModelInnerB3(Double_t x,Double_t z, const TGeoManager *mgr=gGeoManager);
-    TGeoVolume* CreateStaveModelInnerB4(Double_t x,Double_t z, const TGeoManager *mgr=gGeoManager);
+    TGeoVolume* CreateStaveModelInnerB4(const TGeoManager *mgr=gGeoManager);
     void        CreateIBConnectors(const TGeoManager *mgr=gGeoManager);
     void        CreateIBConnectorsASide(const TGeoManager *mgr=gGeoManager);
     void        CreateIBConnectorsCSide(const TGeoManager *mgr=gGeoManager);
@@ -258,14 +260,27 @@ class AliITSUv2Layer : public TObject {
     static const Int_t    fgkNumberOfInnerLayers;// Number of IB Layers
 
     static const Double_t fgkDefaultSensorThick; // Default sensor thickness
-    static const Double_t fgkDefaultChipThick;   // Default chip thickness
+    static const Double_t fgkDefaultChipThick;   // Default IB chip thickness
+    static const Double_t fgkMetalLayerThick;    // Metal layer thickness
 
     // Inner Barrel Parameters
     static const Int_t    fgkIBChipsPerRow;      // IB chips per row in module
     static const Int_t    fgkIBNChipRows;        // IB chip rows in module
+    static const Double_t fgkIBChipZGap;         // Gap between IB chips on Z
 
+    static const Double_t fgkIBFPCWiderXPlus;    // FPC protrusion at X>0
+    static const Double_t fgkIBFPCWiderXNeg ;    // FPC protrusion at X<0
     static const Double_t fgkIBFlexCableAlThick; // Thickness of FPC Aluminum
+    static const Double_t fgkIBFPCAlGNDWidth;    // Width of total FPC Al Gnd
+    static const Double_t fgkIBFPCAlAnodeWidth1; // Width of FPC Al Anode
+    static const Double_t fgkIBFPCAlAnodeWidth2; // Width of FPC Al Anode
     static const Double_t fgkIBFlexCableKapThick;// Thickness of FPC Kapton
+    static const Double_t fgkIBFlexCablePolyThick;//Thickness of FPC Coverlay
+    static const Double_t fgkIBFlexCapacitorXWid;// IB capacitor X width
+    static const Double_t fgkIBFlexCapacitorYHi; // IB capacitor Y height
+    static const Double_t fgkIBFlexCapacitorZLen;// IB capacitor Z length
+    static const Double_t fgkIBColdPlateWidth;   // IB cold plate X width
+    static const Double_t fgkIBColdPlateZLen;    // IB cold plate Z length
     static const Double_t fgkIBGlueThick;        // IB glue thickness
     static const Double_t fgkIBCarbonFleeceThick;// IB carbon fleece thickness
     static const Double_t fgkIBCarbonPaperThick; // IB Carbon Paper Thickness
@@ -282,7 +297,10 @@ class AliITSUv2Layer : public TObject {
     static const Double_t fgkIBTopFilamentLength;// IB TopFilament length
     static const Double_t fgkIBTopFilamentSide;  // IB TopFilament side
     static const Double_t fgkIBTopFilamentAlpha; // IB TopFilament angle
-    static const Double_t fgkIBTopFilamentGamma; // IB TopFilament angle
+    static const Double_t fgkIBTopFilamentTheta; // IB TopFilament angle
+    static const Double_t fgkIBTopFilamentInterZ;// IB TopFilament Z interdist
+    static const Double_t fgkIBTopFilamentYPos;  // IB TopFilament Y position
+    static const Double_t fgkIBEndSupportZLen;   // IB end support length
 
     static const Double_t fgkIBConnectorXWidth;  // IB Connectors Width
     static const Double_t fgkIBConnectorYTot;    // IB Connectors total height
@@ -301,13 +319,12 @@ class AliITSUv2Layer : public TObject {
     static const Double_t fgkIBConnInsertHoleZPos;//IB Connector Insert Z pos
     static const Double_t fgkIBConnTubeHole1D;   // IB Connector Tube1 diam
     static const Double_t fgkIBConnTubeHole1ZLen;// IB Connector Tube1 Z len
+    static const Double_t fgkIBConnTubeHole1ZLen2;//IB Connector Tube1 Z len 2
     static const Double_t fgkIBConnTubeHole2D;   // IB Connector Tube2 diam
     static const Double_t fgkIBConnTubeHole3XPos;// IB Connector Tube3 X pos
     static const Double_t fgkIBConnTubeHole3ZPos;// IB Connector Tube3 Z pos
     static const Double_t fgkIBConnTubesXDist;   // IB Connector Tubes X dist
     static const Double_t fgkIBConnTubesYPos;    // IB Connector Tubes Y pos
-    static const Double_t fgkIBConnInsertInnerX; // IB Connector Insert X in
-    static const Double_t fgkIBConnInsertZThick; // IB Connector Insert Z thick
     static const Double_t fgkIBConnInsertD;      // IB Connector Insert diam
     static const Double_t fgkIBConnInsertHeight; // IB Connector Insert height
     static const Double_t fgkIBConnectAFitExtD;  // IB ConnectorA Fitting ext D
@@ -316,13 +333,15 @@ class AliITSUv2Layer : public TObject {
     static const Double_t fgkIBConnectAFitZOut;  // IB ConnectorA Fitting Z Out
     static const Double_t fgkIBConnPlugInnerD;   // IB Connector Plug int diam
     static const Double_t fgkIBConnPlugTotLen;   // IB Connector Plug tot le
-    static const Double_t fgkIBConnPlugThick;    // IB Connector Plug thickness
+    static const Double_t fgkIBConnPlugInnerLen; // IB Connector Plug inner L
 
     static const Double_t fgkIBStaveHeight;      // IB Stave Total Y Height
 
     // Outer Barrel Parameters
     static const Int_t    fgkOBChipsPerRow;      // OB chips per row in module
     static const Int_t    fgkOBNChipRows;        // OB chip rows in module
+
+    static const Double_t fgkOBChipThick;        // Default OB chip thickness
 
     static const Double_t fgkOBHalfStaveWidth;   // OB Half Stave Width
     static const Double_t fgkOBModuleWidth;      // OB Module Width

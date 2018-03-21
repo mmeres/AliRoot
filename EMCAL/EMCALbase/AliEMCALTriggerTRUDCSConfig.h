@@ -15,6 +15,7 @@
 //________________________________________________
 
 #include "TObject.h"
+#include <iosfwd>
 
 class AliEMCALTriggerTRUDCSConfig : public TObject 
 {
@@ -23,6 +24,28 @@ public:
 
 	AliEMCALTriggerTRUDCSConfig();
 	virtual ~AliEMCALTriggerTRUDCSConfig() {}
+
+	/**
+ 	 * @brief equalty operator
+   * 
+	 * Checking if the two TRU DCS configurations are equal. For equalty
+	 * all settings must be the same.
+	 */ 
+	bool operator==(const AliEMCALTriggerTRUDCSConfig &other) const;
+
+	/**
+	 * @brief Streaming operator
+	 * 
+	 * Printing all settings of the given TRU on the output stream
+	 */
+	friend std::ostream &operator<<(std::ostream &stream, const AliEMCALTriggerTRUDCSConfig &other);
+
+	/**
+	 * @brief Serialize object to JSON format
+	 * 
+	 * @return JSON-serialized TRU DCS config object 
+	 */
+	std::string ToJSON() const;
 
 	void    SetSELPF(  UInt_t pf)              { fSELPF  = pf;        }
 	void    SetL0SEL(  UInt_t la)              { fL0SEL  = la;        }

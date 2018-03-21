@@ -20,9 +20,9 @@
 ///////////////////////////////////////////////////////////////////////////
 //
 // File and Version Information:
-// $Rev:: 280                         $: revision of last commit
-// $Author:: jnystrand                $: author of last commit
-// $Date:: 2016-12-12 20:38:20 +0100 #$: date of last commit
+// $Rev:: 293                         $: revision of last commit
+// $Author:: butter                   $: author of last commit
+// $Date:: 2017-11-11 15:46:05 +0100 #$: date of last commit
 //
 // Description:
 //
@@ -75,6 +75,7 @@ public:
 	void   setPhotonNucleusSigma (double sigma) {_photonNucleusSigma = sigma;}
 	
 protected:
+	const inputParameters* _ip;
 	const unsigned int _nWbins;
 	const unsigned int _nYbins;
 	
@@ -87,6 +88,8 @@ protected:
 	double _photonNucleusSigma; 
 
         int    _printDef; 
+        int    _impulseSelected;
+	int    _quantumGlauber;  // from input parameter; 1 for Quantum Glauber, 0 for classical Glauber
 	
 private:
 
